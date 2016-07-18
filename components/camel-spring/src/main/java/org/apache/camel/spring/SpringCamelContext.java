@@ -16,6 +16,9 @@
  */
 package org.apache.camel.spring;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.HashSet;
 import org.apache.camel.Endpoint;
 import org.apache.camel.component.bean.BeanProcessor;
 import org.apache.camel.component.event.EventComponent;
@@ -139,6 +142,14 @@ public class SpringCamelContext extends DefaultCamelContext implements Initializ
             }
         } else if (event instanceof ContextClosedEvent) {
             // ContextClosedEvent is emitted when Spring is about to be shutdown
+            if (event.getSource() != null) {
+                String eventSource = event.getSource().getClass().getName();
+                LOG.trace("onApplicationEvent: event source {}", eventSource);
+                if (sourceToIgnores.contains(eventSource)) {
+                    LOG.debug("onApplicationEvent: ignoring event {} triggered by source [{}]", event, eventSource);
+                    return;
+                }
+            }
             if (isShutdownEager()) {
                 try {
                     maybeStop();
@@ -294,6 +305,31 @@ public class SpringCamelContext extends DefaultCamelContext implements Initializ
             sb.append(" with spring id ").append(applicationContext.getId());
         }
         return sb.toString();
+    }
+
+    final Set<String> sourceToIgnores = new HashSet();
+    static final String FALSE_STR = Boolean.FALSE.toString();
+    static final String IGNORE_CONTEXT_CLOSED_EVENT_SOURCES_KEY = "ignore.contextclosedevent.sourceevent";
+    static final String EMPTY_STR = "";
+    static final String COMMA_OR_BLANK_SEPERATED_REGEX = ",(\\s)*|(\\s)+";
+
+    private void initSourcesContextClosedEventToIgnore() {
+        LOG.info("CamelContext properties: {}.", this.getProperties());
+        //try to find sources for which we have to ignore the event.
+        String propertyValue = this.getProperty(IGNORE_CONTEXT_CLOSED_EVENT_SOURCES_KEY);
+        propertyValue = (propertyValue == null) ? EMPTY_STR : propertyValue;
+        LOG.debug("initSourcesContextClosedEventToIgnore() - parsing source classes [{}] ", propertyValue);
+        if (!propertyValue.isEmpty()) {
+            //some sources are present
+            sourceToIgnores.addAll(Arrays.asList(propertyValue.split(COMMA_OR_BLANK_SEPERATED_REGEX)));
+        }
+        LOG.info("List of ignored sources classes for the event 'ContextClosedEvent' to prevent a shutdown of the CamelContext. Sources {}", sourceToIgnores);
+    }
+
+    @Override
+    public void start() throws Exception {
+        initSourcesContextClosedEventToIgnore();
+        super.start();
     }
 
 }
