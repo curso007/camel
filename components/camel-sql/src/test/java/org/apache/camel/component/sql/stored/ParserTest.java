@@ -93,21 +93,33 @@ public class ParserTest extends CamelTestSupport {
     }
 
     @Test
-    public void vendorSpeficSqlType() {
+    public void vendorSpecificPositiveSqlType() {
         Template template = parser.parseTemplate("ADDNUMBERS2(1342 ${header.foo})");
         assertEquals(1342, ((InputParameter) template.getParameterList().get(0)).getSqlType());
     }
 
     @Test
-    public void vendorSpeficSqlTypeOut() {
+    public void vendorSpecificNegativeSqlType() {
+        Template template = parser.parseTemplate("ADDNUMBERS2(-1342 ${header.foo})");
+        assertEquals(-1342, ((InputParameter) template.getParameterList().get(0)).getSqlType());
+    }
+
+    @Test
+    public void vendorSpecificPositiveSqlTypeOut() {
         Template template = parser.parseTemplate("ADDNUMBERS2(OUT 1342 h1)");
         assertEquals(1342, ((OutParameter) template.getParameterList().get(0)).getSqlType());
+    }
+
+    @Test
+    public void vendorSpecificNegativeSqlTypeOut() {
+        Template template = parser.parseTemplate("ADDNUMBERS2(OUT -1342 h1)");
+        assertEquals(-1342, ((OutParameter) template.getParameterList().get(0)).getSqlType());
     }
 
 
     @Test
     public void nableIssueSyntax() {
-        Map params = new HashMap<>();
+        Map<String, String> params = new HashMap<>();
         params.put("P_STR_IN", "a");
         Template template = parser.parseTemplate("IBS.\"Z$IMS_INTERFACE_WS\".TEST_STR(VARCHAR :#P_STR_IN,OUT VARCHAR P_STR_OUT)");
         assertEquals("a", ((InputParameter) template.getParameterList().get(0)).getValueExtractor().eval(null, params));

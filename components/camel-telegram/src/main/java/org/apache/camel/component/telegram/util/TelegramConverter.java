@@ -20,8 +20,10 @@ import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
 import org.apache.camel.component.telegram.TelegramConstants;
 import org.apache.camel.component.telegram.TelegramMediaType;
+import org.apache.camel.component.telegram.TelegramParseMode;
 import org.apache.camel.component.telegram.model.IncomingMessage;
 import org.apache.camel.component.telegram.model.OutgoingAudioMessage;
+import org.apache.camel.component.telegram.model.OutgoingDocumentMessage;
 import org.apache.camel.component.telegram.model.OutgoingMessage;
 import org.apache.camel.component.telegram.model.OutgoingPhotoMessage;
 import org.apache.camel.component.telegram.model.OutgoingTextMessage;
@@ -45,6 +47,15 @@ public final class TelegramConverter {
     @Converter
     public static String toString(IncomingMessage message) {
         return message != null ? message.getText() : null;
+    }
+
+    /**
+     * Fallback converter for any unlisted object, using String default mapping.
+     */
+    @Converter
+    public static OutgoingMessage toOutgoingMessage(Object message, Exchange exchange) {
+        String content = exchange.getIn().getBody(String.class);
+        return toOutgoingMessage(content, exchange);
     }
 
     @Converter
@@ -73,6 +84,12 @@ public final class TelegramConverter {
         case TEXT: {
             OutgoingTextMessage txt = new OutgoingTextMessage();
             txt.setText(message);
+
+            TelegramParseMode parseMode = getParseMode(exchange);
+            if (parseMode != null) {
+                txt.setParseMode(parseMode.getCode());
+            }
+
             result = txt;
             break;
         }
@@ -146,12 +163,34 @@ public final class TelegramConverter {
             result = video;
             break;
         }
+        case DOCUMENT:
         default: {
-            throw new IllegalArgumentException("Unsupported conversion from byte[] to media type " + type);
+            // this can be any file
+            OutgoingDocumentMessage document = new OutgoingDocumentMessage();
+            String title = (String) exchange.getIn().getHeader(TelegramConstants.TELEGRAM_MEDIA_TITLE_CAPTION);
+
+            document.setCaption(title);
+            document.setFilenameWithExtension("file");
+            document.setDocument(message);
+
+            result = document;
+            break;
         }
         }
 
         return result;
+    }
+
+    private static TelegramParseMode getParseMode(Exchange exchange) {
+        TelegramParseMode mode = null;
+        Object parseMode = exchange.getIn().getHeader(TelegramConstants.TELEGRAM_PARSE_MODE);
+        if (parseMode instanceof String) {
+            mode = TelegramParseMode.valueOf((String) parseMode);
+        } else {
+            mode = (TelegramParseMode) parseMode;
+        }
+
+        return mode;
     }
 
 

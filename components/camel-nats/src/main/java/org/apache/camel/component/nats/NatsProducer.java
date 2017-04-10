@@ -17,8 +17,11 @@
 package org.apache.camel.component.nats;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
+
+import javax.net.ssl.SSLContext;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
@@ -75,13 +78,24 @@ public class NatsProducer extends DefaultProducer {
         
         LOG.debug("Closing Nats Connection");
         if (connection != null && !connection.isClosed()) {
+            if (getEndpoint().getNatsConfiguration().isFlushConnection()) {
+                LOG.debug("Flushing Nats Connection");
+                connection.flush(getEndpoint().getNatsConfiguration().getFlushTimeout());
+            }
             connection.close();
         }
     }
 
-    private Connection getConnection() throws TimeoutException, IOException {
+    private Connection getConnection() throws TimeoutException, IOException, GeneralSecurityException {
         Properties prop = getEndpoint().getNatsConfiguration().createProperties();
         ConnectionFactory factory = new ConnectionFactory(prop);
+        if (getEndpoint().getNatsConfiguration().getSslContextParameters() != null && getEndpoint().getNatsConfiguration().isSecure()) {
+            SSLContext sslCtx = getEndpoint().getNatsConfiguration().getSslContextParameters().createSSLContext(getEndpoint().getCamelContext()); 
+            factory.setSSLContext(sslCtx);
+            if (getEndpoint().getNatsConfiguration().isTlsDebug()) {
+                factory.setTlsDebug(getEndpoint().getNatsConfiguration().isTlsDebug());
+            }
+        }
         connection = factory.createConnection();
         return connection;
     }

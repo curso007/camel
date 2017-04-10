@@ -26,6 +26,7 @@ import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.component.kubernetes.consumer.KubernetesNamespacesConsumer;
+import org.apache.camel.component.kubernetes.consumer.KubernetesNodesConsumer;
 import org.apache.camel.component.kubernetes.consumer.KubernetesPodsConsumer;
 import org.apache.camel.component.kubernetes.consumer.KubernetesReplicationControllersConsumer;
 import org.apache.camel.component.kubernetes.consumer.KubernetesServicesConsumer;
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The kubernetes component allows to work with Kubernetes PaaS.
  */
-@UriEndpoint(scheme = "kubernetes", title = "Kubernetes", syntax = "kubernetes:masterUrl", label = "container,cloud,paas")
+@UriEndpoint(firstVersion = "2.17.0", scheme = "kubernetes", title = "Kubernetes", syntax = "kubernetes:masterUrl", label = "container,cloud,paas")
 public class KubernetesEndpoint extends DefaultEndpoint {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesEndpoint.class);
@@ -141,6 +142,9 @@ public class KubernetesEndpoint extends DefaultEndpoint {
                 
             case KubernetesCategory.NAMESPACES:
                 return new KubernetesNamespacesConsumer(this, processor);
+                
+            case KubernetesCategory.NODES:
+                return new KubernetesNodesConsumer(this, processor);
 
             default:
                 throw new IllegalArgumentException("The " + category + " consumer category doesn't exist");
@@ -192,7 +196,8 @@ public class KubernetesEndpoint extends DefaultEndpoint {
                 && ObjectHelper.isEmpty(configuration.getOauthToken())) {
             builder.withUsername(configuration.getUsername());
             builder.withPassword(configuration.getPassword());
-        } else {
+        }
+        if (ObjectHelper.isNotEmpty(configuration.getOauthToken())) {
             builder.withOauthToken(configuration.getOauthToken());
         }
         if (ObjectHelper.isNotEmpty(configuration.getCaCertData())) {

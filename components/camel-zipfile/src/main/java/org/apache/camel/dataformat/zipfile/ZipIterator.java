@@ -17,7 +17,6 @@
 package org.apache.camel.dataformat.zipfile;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,11 +40,13 @@ public class ZipIterator implements Iterator<Message>, Closeable {
     static final Logger LOGGER = LoggerFactory.getLogger(ZipIterator.class);
     
     private final Message inputMessage;
+    private boolean allowEmptyDirectory;
     private volatile ZipInputStream zipInputStream;
     private volatile Message parent;
     
     public ZipIterator(Message inputMessage) {
         this.inputMessage = inputMessage;
+        this.allowEmptyDirectory = false;
         InputStream inputStream = inputMessage.getBody(InputStream.class);
         if (inputStream instanceof ZipInputStream) {
             zipInputStream = (ZipInputStream)inputStream;
@@ -130,6 +131,10 @@ public class ZipIterator implements Iterator<Message>, Closeable {
         while ((entry = zipInputStream.getNextEntry()) != null) {
             if (!entry.isDirectory()) {
                 return entry;
+            } else {
+                if (allowEmptyDirectory) {
+                    return entry;
+                }
             }
         }
 
@@ -145,5 +150,13 @@ public class ZipIterator implements Iterator<Message>, Closeable {
     public void close() throws IOException {
         IOHelper.close(zipInputStream);
         zipInputStream = null;
+    }
+    
+    public boolean isSupportIteratorForEmptyDirectory() {
+        return allowEmptyDirectory;
+    }
+
+    public void setAllowEmptyDirectory(boolean allowEmptyDirectory) {
+        this.allowEmptyDirectory = allowEmptyDirectory;
     }
 }

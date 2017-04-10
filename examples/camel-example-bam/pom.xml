@@ -23,15 +23,18 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>examples</artifactId>
-    <version>2.18-SNAPSHOT</version>
+    <version>2.19.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-example-bam</artifactId>
   <packaging>jar</packaging>
-  <name>Camel :: Example :: BAM</name>
+  <name>Camel :: Example :: BAM (deprecated)</name>
   <description>An example showing how to use Camel as a Business Activity Monitoring tool</description>
 
   <properties>
+    <category>Management and Monitoring</category>
+    <title>BAM (deprecated)</title>
+
     <camel.osgi.export.pkg>
       org.apache.camel.example.bam.*
     </camel.osgi.export.pkg>
@@ -56,10 +59,21 @@
       <artifactId>camel-juel</artifactId>
     </dependency>
 
-    <!-- lets use log4j -->
+    <!-- logging -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- lets use hibernate by default -->

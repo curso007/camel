@@ -142,7 +142,16 @@ public enum FacebookMethodsType {
     GETCOMMENTLIKES_WITH_OPTIONS(ResponseList.class, "getCommentLikes", String.class, "commentId", Reading.class, FacebookConstants.READING_PROPERTY),
     LIKECOMMENT(boolean.class, "likeComment", String.class, "commentId"),
     UNLIKECOMMENT(Boolean.class, "unlikeComment", String.class, "commentId"),
-
+    
+    // ConversationMethods
+    GETCONVERSATIONS_WITH_OPTIONS(InboxResponseList.class, "getConversations", String.class, "pageId", Reading.class, FacebookConstants.READING_PROPERTY),
+    GETCONVERSATIONS_WITH_ID(InboxResponseList.class, "getConversations", String.class, "pageId"),
+    GETCONVERSATIONS_WITH_READING(InboxResponseList.class, "getConversations", Reading.class, FacebookConstants.READING_PROPERTY),
+    GETCONVERSATIONS(InboxResponseList.class, "getConversations"),
+    GETCONVERSATION(InboxResponseList.class, "getConversation", String.class, "conversationId"),
+    GETCONVERSATION_WITH_OPTIONS(InboxResponseList.class, "getConversation", String.class, "conversationId", Reading.class, FacebookConstants.READING_PROPERTY),
+    ANSWERCONVERSATION(String.class, "answerConversation", String.class, "conversationId", String.class, "conversation"),
+    
     // DomainMethods
     GETDOMAIN(Domain.class, "getDomain", String.class, "domainId"),
     GETDOMAINBYNAME(Domain.class, "getDomainByName", String.class, "domainName"),
@@ -407,6 +416,8 @@ public enum FacebookMethodsType {
     GETPHOTO_REACTIONS(ResponseList.class, "getPhotoReactions", String.class, "photoId"),
     GETPHOTO_REACTIONS_WITH_OPTIONS(ResponseList.class, "getPhotoReactions", String.class, "photoId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETPHOTOURL(URL.class, "getPhotoURL", String.class, "photoId"),
+    GETPHOTOSHAREDPOSTS(ResponseList.class, "getPhotoSharedposts", String.class, "photoId"),
+    GETPHOTOSHAREDPOSTS_WITH_OPTIONS(ResponseList.class, "getPhotoSharedposts", String.class, "photoId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETTAGSONPHOTO(ResponseList.class, "getTagsOnPhoto", String.class, "photoId"),
     GETTAGSONPHOTO_WITH_OPTIONS(ResponseList.class, "getTagsOnPhoto", String.class, "photoId", Reading.class, FacebookConstants.READING_PROPERTY),
     LIKEPHOTO(Boolean.class, "likePhoto", String.class, "photoId"),
@@ -447,6 +458,8 @@ public enum FacebookMethodsType {
     GETPOSTS_WITH_OPTIONS(ResponseList.class, "getPosts", Reading.class, FacebookConstants.READING_PROPERTY),
     GETPOSTS_WITH_ID(ResponseList.class, "getPosts", String.class, "userId"),
     GETPOSTS_WITH_ID_OPTIONS(ResponseList.class, "getPosts", String.class, "userId", Reading.class, FacebookConstants.READING_PROPERTY),
+    GETSHAREDPOSTS(ResponseList.class, "getSharedPosts", String.class, "postId"),
+    GETSHAREDPOSTS_WITH_OPTIONS(ResponseList.class, "getSharedPosts", String.class, "postId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETSTATUSES(ResponseList.class, "getStatuses"),
     GETSTATUSES_WITH_OPTIONS(ResponseList.class, "getStatuses", Reading.class, FacebookConstants.READING_PROPERTY),
     GETSTATUSES_WITH_ID(ResponseList.class, "getStatuses", String.class, "userId"),
@@ -520,6 +533,8 @@ public enum FacebookMethodsType {
     GETVIDEO_WITH_OPTIONS(Video.class, "getVideo", String.class, "videoId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETVIDEO_REACTIONS(ResponseList.class, "getVideoReactions", String.class, "videoId"),
     GETVIDEO_REACTIONS_WITH_OPTIONS(ResponseList.class, "getVideoReactions", String.class, "videoId", Reading.class, FacebookConstants.READING_PROPERTY),
+    GETVIDEOSHAREDPOSTS(ResponseList.class, "getVideoSharedposts", String.class, "videoId"),
+    GETVIDEOSHAREDPOSTS_WITH_OPTIONS(ResponseList.class, "getVideoSharedposts", String.class, "videoId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETVIDEOCOMMENTS(ResponseList.class, "getVideoComments", String.class, "videoId"),
     GETVIDEOCOMMENTS_WITH_OPTIONS(ResponseList.class, "getVideoComments", String.class, "videoId", Reading.class, FacebookConstants.READING_PROPERTY),
     GETVIDEOCOVER(URL.class, "getVideoCover", String.class, "videoId"),
@@ -535,6 +550,7 @@ public enum FacebookMethodsType {
     // SearchMethods get the highest priority with higher ordinal values
     SEARCH(ResponseList.class, "search", String.class, "query"),
     SEARCH_WITH_OPTIONS(ResponseList.class, "search", String.class, "query", Reading.class, FacebookConstants.READING_PROPERTY),
+    SEARCH_WITH_TYPE(ResponseList.class, "search", String.class, "query", String.class, "type", Reading.class, FacebookConstants.READING_PROPERTY),
     SEARCHCHECKINS(ResponseList.class, "searchCheckins"),
     SEARCHCHECKINS_WITH_OPTIONS(ResponseList.class, "searchCheckins", Reading.class, FacebookConstants.READING_PROPERTY),
     SEARCHEVENTS(ResponseList.class, "searchEvents", String.class, "query"),

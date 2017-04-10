@@ -23,13 +23,18 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>examples</artifactId>
-    <version>2.18-SNAPSHOT</version>
+    <version>2.19.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-example-swagger-osgi</artifactId>
   <name>Camel :: Example :: Swagger :: OSGi</name>
   <description>An example using REST DSL in XML and Swagger API</description>
   <packaging>jar</packaging>
+
+  <properties>
+    <category>OSGi</category>
+    <title>Swagger OSGi</title>
+  </properties>
 
   <dependencies>
 

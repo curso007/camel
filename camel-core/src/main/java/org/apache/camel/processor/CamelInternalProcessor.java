@@ -17,7 +17,6 @@
 package org.apache.camel.processor;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,6 +44,7 @@ import org.apache.camel.spi.MessageHistoryFactory;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spi.StreamCachingStrategy;
+import org.apache.camel.spi.Transformer;
 import org.apache.camel.spi.UnitOfWork;
 import org.apache.camel.util.MessageHelper;
 import org.apache.camel.util.OrderedComparator;
@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  *     <li>Debugging</li>
  *     <li>Message History</li>
  *     <li>Stream Caching</li>
+ *     <li>{@link Transformer}</li>
  * </ul>
  * ... and more.
  * <p/>
@@ -99,7 +100,7 @@ public class CamelInternalProcessor extends DelegateAsyncProcessor {
     public void addAdvice(CamelInternalProcessorAdvice advice) {
         advices.add(advice);
         // ensure advices are sorted so they are in the order we want
-        Collections.sort(advices, new OrderedComparator());
+        advices.sort(new OrderedComparator());
     }
 
     /**
@@ -748,7 +749,18 @@ public class CamelInternalProcessor extends DelegateAsyncProcessor {
                 list = new LinkedList<>();
                 exchange.setProperty(Exchange.MESSAGE_HISTORY, list);
             }
-            MessageHistory history = factory.newMessageHistory(routeId, definition, new Date());
+
+            // we may be routing outside a route in an onException or interceptor and if so then grab
+            // route id from the exchange UoW state
+            String targetRouteId = this.routeId;
+            if (targetRouteId == null) {
+                UnitOfWork uow = exchange.getUnitOfWork();
+                if (uow != null && uow.getRouteContext() != null) {
+                    targetRouteId = uow.getRouteContext().getRoute().getId();
+                }
+            }
+
+            MessageHistory history = factory.newMessageHistory(targetRouteId, definition, new Date());
             list.add(history);
             return history;
         }
@@ -842,5 +854,4 @@ public class CamelInternalProcessor extends DelegateAsyncProcessor {
             // noop
         }
     }
-
 }

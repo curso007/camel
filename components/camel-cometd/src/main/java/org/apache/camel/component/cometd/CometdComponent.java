@@ -27,6 +27,7 @@ import javax.servlet.DispatcherType;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.impl.UriEndpointComponent;
+import org.apache.camel.spi.Metadata;
 import org.apache.camel.util.jsse.SSLContextParameters;
 import org.cometd.bayeux.server.BayeuxServer;
 import org.cometd.bayeux.server.SecurityPolicy;
@@ -36,7 +37,6 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.session.HashSessionManager;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -54,13 +54,19 @@ public class CometdComponent extends UriEndpointComponent {
     private static final Logger LOG = LoggerFactory.getLogger(CometdComponent.class);
 
     private final Map<String, ConnectorRef> connectors = new LinkedHashMap<String, ConnectorRef>();
-   
+
+    private List<BayeuxServer.BayeuxServerListener> serverListeners;
+
+    @Metadata(label = "security", secret = true)
     private String sslKeyPassword;
+    @Metadata(label = "security", secret = true)
     private String sslPassword;
+    @Metadata(label = "security", secret = true)
     private String sslKeystore;
+    @Metadata(label = "security")
     private SecurityPolicy securityPolicy;
     private List<BayeuxServer.Extension> extensions;
-    private List<BayeuxServer.BayeuxServerListener> serverListeners;
+    @Metadata(label = "security")
     private SSLContextParameters sslContextParameters;
 
     class ConnectorRef {
@@ -204,7 +210,7 @@ public class CometdComponent extends UriEndpointComponent {
 
         context.addServlet(holder, "/cometd/*");
         context.addServlet("org.eclipse.jetty.servlet.DefaultServlet", "/");
-        context.setSessionHandler(new SessionHandler(new HashSessionManager()));
+        context.setSessionHandler(new SessionHandler());
 
         holder.setInitParameter("timeout", Integer.toString(endpoint.getTimeout()));
         holder.setInitParameter("interval", Integer.toString(endpoint.getInterval()));
@@ -352,7 +358,8 @@ public class CometdComponent extends UriEndpointComponent {
      * a pre-configured {@link SSLContext}.
      */
     private static final class CometdComponentSslContextFactory extends SslContextFactory {
-        @Override
+        // to support jetty 9.2.
+        // TODO: remove this class when we have upgraded to jetty 9.3
         public void checkKeyStore() {
         }
     }

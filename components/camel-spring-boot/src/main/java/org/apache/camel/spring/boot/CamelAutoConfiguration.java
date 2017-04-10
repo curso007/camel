@@ -29,7 +29,9 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.camel.TypeConverters;
 import org.apache.camel.component.properties.PropertiesComponent;
 import org.apache.camel.component.properties.PropertiesParser;
+import org.apache.camel.impl.FileWatcherReloadStrategy;
 import org.apache.camel.processor.interceptor.BacklogTracer;
+import org.apache.camel.processor.interceptor.DefaultTraceFormatter;
 import org.apache.camel.processor.interceptor.HandleFault;
 import org.apache.camel.processor.interceptor.TraceFormatter;
 import org.apache.camel.processor.interceptor.Tracer;
@@ -42,6 +44,7 @@ import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.LifecycleStrategy;
 import org.apache.camel.spi.ManagementNamingStrategy;
 import org.apache.camel.spi.ManagementStrategy;
+import org.apache.camel.spi.ReloadStrategy;
 import org.apache.camel.spi.RoutePolicyFactory;
 import org.apache.camel.spi.RuntimeEndpointRegistry;
 import org.apache.camel.spi.ShutdownStrategy;
@@ -101,8 +104,16 @@ public class CamelAutoConfiguration {
             ((SpringCamelContext) camelContext).setName(config.getName());
         }
 
+        if (config.getShutdownTimeout() > 0) {
+            camelContext.getShutdownStrategy().setTimeout(config.getShutdownTimeout());
+        }
+        camelContext.getShutdownStrategy().setSuppressLoggingOnTimeout(config.isShutdownSuppressLoggingOnTimeout());
+        camelContext.getShutdownStrategy().setShutdownNowOnTimeout(config.isShutdownNowOnTimeout());
+        camelContext.getShutdownStrategy().setShutdownRoutesInReverseOrder(config.isShutdownRoutesInReverseOrder());
+        camelContext.getShutdownStrategy().setLogInflightExchangesOnTimeout(config.isShutdownLogInflightExchangesOnTimeout());
+
         if (config.getLogDebugMaxChars() > 0) {
-            camelContext.getProperties().put(Exchange.LOG_DEBUG_BODY_MAX_CHARS, "" + config.getLogDebugMaxChars());
+            camelContext.getGlobalOptions().put(Exchange.LOG_DEBUG_BODY_MAX_CHARS, "" + config.getLogDebugMaxChars());
         }
 
         // stream caching
@@ -132,8 +143,8 @@ public class CamelAutoConfiguration {
             camelContext.getStreamCachingStrategy().setSpoolUsedHeapMemoryThreshold(config.getStreamCachingSpoolUsedHeapMemoryThreshold());
         }
 
-        camelContext.setTracing(config.isTracing());
         camelContext.setMessageHistory(config.isMessageHistory());
+        camelContext.setLogMask(config.isLogMask());
         camelContext.setLogExhaustedMessageBody(config.isLogExhaustedMessageBody());
         camelContext.setHandleFault(config.isHandleFault());
         camelContext.setAutoStartup(config.isAutoStartup());
@@ -148,6 +159,40 @@ public class CamelAutoConfiguration {
 
         camelContext.setPackageScanClassResolver(new FatJarPackageScanClassResolver());
 
+        // tracing
+        camelContext.setTracing(config.isTracing());
+        if (camelContext.getDefaultTracer() instanceof Tracer) {
+            Tracer tracer = (Tracer) camelContext.getDefaultTracer();
+            if (tracer.getDefaultTraceFormatter() != null) {
+                DefaultTraceFormatter formatter = tracer.getDefaultTraceFormatter();
+                if (config.getTracerFormatterBreadCrumbLength() != null) {
+                    formatter.setBreadCrumbLength(config.getTracerFormatterBreadCrumbLength());
+                }
+                if (config.getTracerFormatterMaxChars() != null) {
+                    formatter.setMaxChars(config.getTracerFormatterMaxChars());
+                }
+                if (config.getTracerFormatterNodeLength() != null) {
+                    formatter.setNodeLength(config.getTracerFormatterNodeLength());
+                }
+                formatter.setShowBody(config.isTraceFormatterShowBody());
+                formatter.setShowBodyType(config.isTracerFormatterShowBodyType());
+                formatter.setShowBreadCrumb(config.isTraceFormatterShowBreadCrumb());
+                formatter.setShowException(config.isTraceFormatterShowException());
+                formatter.setShowExchangeId(config.isTraceFormatterShowExchangeId());
+                formatter.setShowExchangePattern(config.isTraceFormatterShowExchangePattern());
+                formatter.setShowHeaders(config.isTraceFormatterShowHeaders());
+                formatter.setShowNode(config.isTraceFormatterShowNode());
+                formatter.setShowProperties(config.isTraceFormatterShowProperties());
+                formatter.setShowRouteId(config.isTraceFormatterShowRouteId());
+                formatter.setShowShortExchangeId(config.isTraceFormatterShowShortExchangeId());
+            }
+        }
+
+        if (config.getXmlRoutesReloadDirectory() != null) {
+            ReloadStrategy reload = new FileWatcherReloadStrategy(config.getXmlRoutesReloadDirectory());
+            camelContext.setReloadStrategy(reload);
+        }
+
         // additional advanced configuration which is not configured using CamelConfigurationProperties
         afterPropertiesSet(applicationContext, camelContext);
 
@@ -156,6 +201,11 @@ public class CamelAutoConfiguration {
 
     @Bean
     CamelSpringBootApplicationController applicationController(ApplicationContext applicationContext, CamelContext camelContext) {
+        // CAMEL-10279: We have to call setNoStart(true) here so that if a <camelContext> is imported via
+        // @ImportResource then it does not get started before the RoutesCollector gets a chance to add any
+        // routes found in RouteBuilders.  Even if no RouteBuilders are found, the RoutesCollector will handle
+        // starting the the Camel Context.
+        SpringCamelContext.setNoStart(true);
         return new CamelSpringBootApplicationController(applicationContext, camelContext);
     }
 
@@ -173,8 +223,10 @@ public class CamelAutoConfiguration {
     // Camel handles the lifecycle of this bean
     @ConditionalOnMissingBean(ProducerTemplate.class)
     ProducerTemplate producerTemplate(CamelContext camelContext,
-                                      CamelConfigurationProperties config) {
-        return camelContext.createProducerTemplate(config.getProducerTemplateCacheSize());
+                                      CamelConfigurationProperties config) throws Exception {
+        final ProducerTemplate producerTemplate = camelContext.createProducerTemplate(config.getProducerTemplateCacheSize());
+        camelContext.addService(producerTemplate);
+        return producerTemplate;
     }
 
     /**
@@ -184,8 +236,10 @@ public class CamelAutoConfiguration {
     // Camel handles the lifecycle of this bean
     @ConditionalOnMissingBean(ConsumerTemplate.class)
     ConsumerTemplate consumerTemplate(CamelContext camelContext,
-                                      CamelConfigurationProperties config) {
-        return camelContext.createConsumerTemplate(config.getConsumerTemplateCacheSize());
+                                      CamelConfigurationProperties config) throws Exception {
+        final ConsumerTemplate consumerTemplate = camelContext.createConsumerTemplate(config.getConsumerTemplateCacheSize());
+        camelContext.addService(consumerTemplate);
+        return consumerTemplate;
     }
 
     // SpringCamelContext integration

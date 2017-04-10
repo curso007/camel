@@ -26,20 +26,29 @@ import ch.qos.logback.core.util.StatusPrinter;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
- * Contains the main class of the sample spring-boot application created for the module under test.
+ * Contains the main class of the sample spring-boot application created for the 
+ * module under test.
  *
  */
 @SpringBootApplication
 @EnableAsync
+@Import(ITestXmlConfiguration.class)
 public class ITestApplication {
 
     public static void main(String[] args) throws Exception {
-        overrideLoggingConfig();
 
-        SpringApplication.run(ITestApplication.class, args);
+        try {
+            overrideLoggingConfig();
+
+            SpringApplication.run(ITestApplication.class, args);
+        } catch (Throwable t) {
+            LoggerFactory.getLogger(ITestApplication.class).error("Error while executing test", t);
+            throw t;
+        }
     }
 
     @Override
@@ -69,5 +78,4 @@ public class ITestApplication {
         }
 
     }
-
 }

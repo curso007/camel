@@ -16,6 +16,7 @@
  */
 package org.apache.camel.component.aws.sns;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -23,7 +24,9 @@ import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClient;
 import com.amazonaws.services.sns.model.CreateTopicRequest;
 import com.amazonaws.services.sns.model.CreateTopicResult;
+import com.amazonaws.services.sns.model.ListTopicsResult;
 import com.amazonaws.services.sns.model.SetTopicAttributesRequest;
+import com.amazonaws.services.sns.model.Topic;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Component;
@@ -31,6 +34,8 @@ import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultEndpoint;
+import org.apache.camel.spi.HeaderFilterStrategy;
+import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
@@ -42,8 +47,9 @@ import org.slf4j.LoggerFactory;
 /**
  * The aws-sns component is used for sending messages to an Amazon Simple Notification Topic.
  */
-@UriEndpoint(scheme = "aws-sns", title = "AWS Simple Notification System", syntax = "aws-sns:topicNameOrArn", producerOnly = true, label = "cloud,mobile,messaging")
-public class SnsEndpoint extends DefaultEndpoint {
+@UriEndpoint(firstVersion = "2.8.0", scheme = "aws-sns", title = "AWS Simple Notification System", syntax = "aws-sns:topicNameOrArn",
+    producerOnly = true, label = "cloud,mobile,messaging")
+public class SnsEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware {
 
     private static final Logger LOG = LoggerFactory.getLogger(SnsEndpoint.class);
 
@@ -54,6 +60,8 @@ public class SnsEndpoint extends DefaultEndpoint {
     private String topicNameOrArn; // to support component docs
     @UriParam
     private SnsConfiguration configuration;
+    @UriParam
+    private HeaderFilterStrategy headerFilterStrategy;
 
     @Deprecated
     public SnsEndpoint(String uri, CamelContext context, SnsConfiguration configuration) {
@@ -63,6 +71,17 @@ public class SnsEndpoint extends DefaultEndpoint {
     public SnsEndpoint(String uri, Component component, SnsConfiguration configuration) {
         super(uri, component);
         this.configuration = configuration;
+    }
+
+    public HeaderFilterStrategy getHeaderFilterStrategy() {
+        return headerFilterStrategy;
+    }
+
+    /**
+     * To use a custom HeaderFilterStrategy to map headers to/from Camel.
+     */
+    public void setHeaderFilterStrategy(HeaderFilterStrategy strategy) {
+        this.headerFilterStrategy = strategy;
     }
 
     public Consumer createConsumer(Processor processor) throws Exception {
@@ -87,6 +106,32 @@ public class SnsEndpoint extends DefaultEndpoint {
         if (ObjectHelper.isNotEmpty(configuration.getAmazonSNSEndpoint())) {
             LOG.trace("Updating the SNS region with : {} " + configuration.getAmazonSNSEndpoint());
             snsClient.setEndpoint(configuration.getAmazonSNSEndpoint());
+        }
+
+        // check the setting the headerFilterStrategy
+        if (headerFilterStrategy == null) {
+            headerFilterStrategy = new SnsHeaderFilterStrategy();
+        }
+        
+        if (configuration.getTopicArn() == null) {
+            try {
+                String nextToken = null;
+                final String arnSuffix = ":" + configuration.getTopicName();
+                do {
+                    final ListTopicsResult response = snsClient.listTopics(nextToken);
+                    nextToken = response.getNextToken();
+
+                    for (final Topic topic : response.getTopics()) {
+                        if (topic.getTopicArn().endsWith(arnSuffix)) {
+                            configuration.setTopicArn(topic.getTopicArn());
+                            break;
+                        }
+                    }
+                } while (nextToken != null);
+            } catch (final AmazonServiceException ase) {
+                LOG.trace("The list topics operation return the following error code {}", ase.getErrorCode());
+                throw ase;
+            }
         }
 
         if (configuration.getTopicArn() == null) {
@@ -134,14 +179,27 @@ public class SnsEndpoint extends DefaultEndpoint {
      */
     AmazonSNS createSNSClient() {
         AmazonSNS client = null;
-        AWSCredentials credentials = new BasicAWSCredentials(configuration.getAccessKey(), configuration.getSecretKey());
+        ClientConfiguration clientConfiguration = null;
+        boolean isClientConfigFound = false;
         if (ObjectHelper.isNotEmpty(configuration.getProxyHost()) && ObjectHelper.isNotEmpty(configuration.getProxyPort())) {
-            ClientConfiguration clientConfiguration = new ClientConfiguration();
+            clientConfiguration = new ClientConfiguration();
             clientConfiguration.setProxyHost(configuration.getProxyHost());
             clientConfiguration.setProxyPort(configuration.getProxyPort());
-            client = new AmazonSNSClient(credentials, clientConfiguration);
+            isClientConfigFound = true;
+        }
+        if (configuration.getAccessKey() != null && configuration.getSecretKey() != null) {
+            AWSCredentials credentials = new BasicAWSCredentials(configuration.getAccessKey(), configuration.getSecretKey());
+            if (isClientConfigFound) {
+                client = new AmazonSNSClient(credentials, clientConfiguration);
+            } else {
+                client = new AmazonSNSClient(credentials);
+            }
         } else {
-            client = new AmazonSNSClient(credentials);
+            if (isClientConfigFound) {
+                client = new AmazonSNSClient();
+            } else {
+                client = new AmazonSNSClient(clientConfiguration);
+            }
         }
         return client;
     }

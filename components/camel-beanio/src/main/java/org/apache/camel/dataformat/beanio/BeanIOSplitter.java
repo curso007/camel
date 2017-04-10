@@ -31,7 +31,10 @@ import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ResourceHelper;
 import org.beanio.BeanReader;
+import org.beanio.BeanReaderErrorHandler;
 import org.beanio.StreamFactory;
+
+import static org.apache.camel.dataformat.beanio.BeanIOHelper.getOrCreateBeanReaderErrorHandler;
 
 /**
  * You can use {@link BeanIOSplitter} with the Camel Splitter EIP to split big payloads
@@ -95,9 +98,12 @@ public class BeanIOSplitter implements Expression {
             beanReader = factory.createReader(getStreamName(), reader);
         }
 
-        beanReader.setErrorHandler(new BeanIOErrorHandler(configuration));
+        BeanIOIterator iterator = new BeanIOIterator(beanReader);
 
-        return new BeanIOIterator(beanReader);
+        BeanReaderErrorHandler errorHandler = getOrCreateBeanReaderErrorHandler(configuration, exchange, null, iterator);
+        beanReader.setErrorHandler(errorHandler);
+
+        return iterator;
     }
 
     @Override
@@ -180,5 +186,25 @@ public class BeanIOSplitter implements Expression {
 
     public Charset getEncoding() {
         return configuration.getEncoding();
+    }
+
+    public BeanReaderErrorHandler getBeanReaderErrorHandler() {
+        return configuration.getBeanReaderErrorHandler();
+    }
+
+    public void setBeanReaderErrorHandler(BeanReaderErrorHandler beanReaderErrorHandler) {
+        configuration.setBeanReaderErrorHandler(beanReaderErrorHandler);
+    }
+
+    public String getBeanReaderErrorHandlerType() {
+        return configuration.getBeanReaderErrorHandlerType();
+    }
+
+    public void setBeanReaderErrorHandlerType(String beanReaderErrorHandlerType) {
+        configuration.setBeanReaderErrorHandlerType(beanReaderErrorHandlerType);
+    }
+
+    public void setBeanReaderErrorHandlerType(Class<?> beanReaderErrorHandlerType) {
+        configuration.setBeanReaderErrorHandlerType(beanReaderErrorHandlerType);
     }
 }

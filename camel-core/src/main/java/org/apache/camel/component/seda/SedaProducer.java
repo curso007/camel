@@ -19,7 +19,6 @@ package org.apache.camel.component.seda;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangeTimedOutException;
@@ -178,7 +177,11 @@ public class SedaProducer extends DefaultAsyncProducer {
 
     protected Exchange prepareCopy(Exchange exchange, boolean handover) {
         // use a new copy of the exchange to route async (and use same message id)
-        Exchange copy = ExchangeHelper.createCorrelatedCopy(exchange, handover, true);
+
+        // if handover we need to do special handover to avoid handing over
+        // RestBindingMarshalOnCompletion as it should not be handed over with SEDA
+        Exchange copy = ExchangeHelper.createCorrelatedCopy(exchange, handover, true,
+            synchronization -> !synchronization.getClass().getName().contains("RestBindingMarshalOnCompletion"));
         // set a new from endpoint to be the seda queue
         copy.setFromEndpoint(endpoint);
         return copy;

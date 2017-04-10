@@ -19,8 +19,6 @@ package org.apache.camel.component.fop;
 import java.io.InputStream;
 import java.net.URI;
 
-import org.apache.avalon.framework.configuration.Configuration;
-import org.apache.avalon.framework.configuration.DefaultConfigurationBuilder;
 import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
@@ -35,7 +33,7 @@ import org.apache.fop.apps.FopFactory;
 /**
  * The fop component allows you to render a message into different output formats using Apache FOP.
  */
-@UriEndpoint(scheme = "fop", title = "FOP", syntax = "fop:outputType", producerOnly = true, label = "transformation")
+@UriEndpoint(firstVersion = "2.10.0", scheme = "fop", title = "FOP", syntax = "fop:outputType", producerOnly = true, label = "transformation")
 public class FopEndpoint extends DefaultEndpoint {
 
     @UriPath @Metadata(required = "true")

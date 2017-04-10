@@ -19,18 +19,22 @@ package org.apache.camel.builder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.camel.CamelContext;
 import org.apache.camel.Component;
 import org.apache.camel.Endpoint;
@@ -40,6 +44,7 @@ import org.apache.camel.InvalidPayloadException;
 import org.apache.camel.Message;
 import org.apache.camel.NoSuchEndpointException;
 import org.apache.camel.NoSuchLanguageException;
+import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.Producer;
 import org.apache.camel.component.bean.BeanInvocation;
 import org.apache.camel.component.properties.PropertiesComponent;
@@ -64,22 +69,60 @@ import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.MessageHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.OgnlHelper;
+import org.apache.camel.util.SkipIterator;
 import org.apache.camel.util.StringHelper;
-
 
 /**
  * A helper class for working with <a href="http://camel.apache.org/expression.html">expressions</a>.
  *
- * @version 
+ * @version
  */
 public final class ExpressionBuilder {
+
+    private static final Pattern OFFSET_PATTERN = Pattern.compile("([+-])([^+-]+)");
 
     /**
      * Utility classes should not have a public constructor.
      */
     private ExpressionBuilder() {
     }
-    
+
+    /**
+     * Returns an expression for the inbound message attachments
+     *
+     * @return an expression object which will return the inbound message attachments
+     */
+    public static Expression attachmentObjectsExpression() {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return exchange.getIn().getAttachmentObjects();
+            }
+
+            @Override
+            public String toString() {
+                return "attachmentObjects";
+            }
+        };
+    }
+
+    /**
+     * Returns an expression for the inbound message attachments
+     *
+     * @return an expression object which will return the inbound message attachments
+     */
+    public static Expression attachmentObjectValuesExpression() {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return exchange.getIn().getAttachmentObjects().values();
+            }
+
+            @Override
+            public String toString() {
+                return "attachmentObjects";
+            }
+        };
+    }
+
     /**
      * Returns an expression for the inbound message attachments
      *
@@ -314,8 +357,8 @@ public final class ExpressionBuilder {
                 return "exchangePattern";
             }
         };
-    }   
-    
+    }
+
     /**
      * Returns an expression for an exception set on the exchange
      *
@@ -365,7 +408,7 @@ public final class ExpressionBuilder {
             }
         };
     }
-    
+
     /**
      * Returns the expression for the exchanges exception invoking methods defined
      * in a simple OGNL notation
@@ -379,7 +422,7 @@ public final class ExpressionBuilder {
                 if (exception == null) {
                     exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
                 }
-                
+
                 if (exception == null) {
                     return null;
                 }
@@ -561,7 +604,7 @@ public final class ExpressionBuilder {
             }
         };
     }
-    
+
     /**
      * Returns an expression for the property value of exchange with the given name
      *
@@ -602,8 +645,19 @@ public final class ExpressionBuilder {
      * Returns an expression for the properties of exchange
      *
      * @return an expression object which will return the properties
+     * @deprecated use {@link #exchangeExceptionExpression()} instead
      */
+    @Deprecated
     public static Expression propertiesExpression() {
+        return exchangeExceptionExpression();
+    }
+
+    /**
+     * Returns an expression for the exchange properties of exchange
+     *
+     * @return an expression object which will return the exchange properties
+     */
+    public static Expression exchangePropertiesExpression() {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
                 return exchange.getProperties();
@@ -611,11 +665,11 @@ public final class ExpressionBuilder {
 
             @Override
             public String toString() {
-                return "properties";
+                return "exchangeProperties";
             }
         };
     }
-    
+
     /**
      * Returns an expression for the properties of the camel context
      *
@@ -624,7 +678,7 @@ public final class ExpressionBuilder {
     public static Expression camelContextPropertiesExpression() {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
-                return exchange.getContext().getProperties();
+                return exchange.getContext().getGlobalOptions();
             }
 
             @Override
@@ -633,7 +687,7 @@ public final class ExpressionBuilder {
             }
         };
     }
-    
+
     /**
      * Returns an expression for the property value of the camel context with the given name
      *
@@ -644,7 +698,7 @@ public final class ExpressionBuilder {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
                 String text = simpleExpression(propertyName).evaluate(exchange, String.class);
-                return exchange.getContext().getProperty(text);
+                return exchange.getContext().getGlobalOption(text);
             }
 
             @Override
@@ -852,6 +906,80 @@ public final class ExpressionBuilder {
             @Override
             public String toString() {
                 return "body";
+            }
+        };
+    }
+
+    /**
+     * Returns a functional expression for the exchanges inbound message body
+     */
+    public static Expression bodyExpression(final Function<Object, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(
+                    exchange.getIn().getBody()
+                );
+            }
+
+            @Override
+            public String toString() {
+                return "bodyExpression";
+            }
+        };
+    }
+
+    /**
+     * Returns a functional expression for the exchanges inbound message body and headers
+     */
+    public static Expression bodyExpression(final BiFunction<Object, Map<String, Object>, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(
+                    exchange.getIn().getBody(),
+                    exchange.getIn().getHeaders()
+                );
+            }
+
+            @Override
+            public String toString() {
+                return "bodyExpression";
+            }
+        };
+    }
+
+    /**
+     * Returns a functional expression for the exchanges inbound message body converted to a desired type
+     */
+    public static <T> Expression bodyExpression(final Class<T> bodyType, final Function<T, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(
+                    exchange.getIn().getBody(bodyType)
+                );
+            }
+
+            @Override
+            public String toString() {
+                return "bodyExpression (" + bodyType + ")";
+            }
+        };
+    }
+
+    /**
+     * Returns a functional expression for the exchanges inbound message body converted to a desired type and headers
+     */
+    public static <T> Expression bodyExpression(final Class<T> bodyType, final BiFunction<T, Map<String, Object>, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(
+                    exchange.getIn().getBody(bodyType),
+                    exchange.getIn().getHeaders()
+                );
+            }
+
+            @Override
+            public String toString() {
+                return "bodyExpression (" + bodyType + ")";
             }
         };
     }
@@ -1283,6 +1411,36 @@ public final class ExpressionBuilder {
     }
 
     /**
+     * Returns a functional expression for the exchange
+     */
+    public static Expression exchangeExpression(final Function<Exchange, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(exchange);
+            }
+
+            @Override
+            public String toString() {
+                return "exchangeExpression";
+            }
+        };
+    }
+
+    /**
+     * Returns the expression for the IN message
+     */
+    public static Expression messageExpression() {
+        return inMessageExpression();
+    }
+
+    /**
+     * Returns a functional expression for the IN message
+     */
+    public static Expression messageExpression(final Function<Message, Object> function) {
+        return inMessageExpression(function);
+    }
+
+    /**
      * Returns the expression for the IN message
      */
     public static Expression inMessageExpression() {
@@ -1299,6 +1457,22 @@ public final class ExpressionBuilder {
     }
 
     /**
+     * Returns a functional expression for the IN message
+     */
+    public static Expression inMessageExpression(final Function<Message, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(exchange.getIn());
+            }
+
+            @Override
+            public String toString() {
+                return "inMessageExpression";
+            }
+        };
+    }
+
+    /**
      * Returns the expression for the OUT message
      */
     public static Expression outMessageExpression() {
@@ -1310,6 +1484,22 @@ public final class ExpressionBuilder {
             @Override
             public String toString() {
                 return "outMessage";
+            }
+        };
+    }
+
+    /**
+     * Returns a functional expression for the OUT message
+     */
+    public static Expression outMessageExpression(final Function<Message, Object> function) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return function.apply(exchange.getOut());
+            }
+
+            @Override
+            public String toString() {
+                return "outMessageExpression";
             }
         };
     }
@@ -1421,7 +1611,7 @@ public final class ExpressionBuilder {
         ObjectHelper.notEmpty(path, "path");
         return new XMLTokenExpressionIterator(path, mode);
     }
-    
+
     public static Expression tokenizeXMLAwareExpression(String path, char mode, int group) {
         ObjectHelper.notEmpty(path, "path");
         return new XMLTokenExpressionIterator(path, mode, group);
@@ -1486,6 +1676,22 @@ public final class ExpressionBuilder {
         };
     }
 
+    public static Expression skipIteratorExpression(final Expression expression, final int skip) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                // evaluate expression as iterator
+                Iterator<?> it = expression.evaluate(exchange, Iterator.class);
+                ObjectHelper.notNull(it, "expression: " + expression + " evaluated on " + exchange + " must return an java.util.Iterator");
+                return new SkipIterator(exchange, it, skip);
+            }
+
+            @Override
+            public String toString() {
+                return "skip " + expression + " " + skip + " times";
+            }
+        };
+    }
+
     /**
      * Returns a sort expression which will sort the expression with the given comparator.
      * <p/>
@@ -1496,7 +1702,7 @@ public final class ExpressionBuilder {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
                 List<?> list = expression.evaluate(exchange, List.class);
-                Collections.sort(list, comparator);
+                list.sort(comparator);
                 return list;
             }
 
@@ -1688,9 +1894,30 @@ public final class ExpressionBuilder {
         };
     }
 
+    public static Expression dateExpression(final String command) {
+        return dateExpression(command, null, null);
+    }
+
     public static Expression dateExpression(final String command, final String pattern) {
+        return dateExpression(command, null, pattern);
+    }
+
+    public static Expression dateExpression(final String commandWithOffsets, final String timezone, final String pattern) {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
+                // Capture optional time offsets
+                String command = commandWithOffsets.split("[+-]", 2)[0].trim();
+                List<Long> offsets = new ArrayList<>();
+                Matcher offsetMatcher = OFFSET_PATTERN.matcher(commandWithOffsets);
+                while (offsetMatcher.find()) {
+                    try {
+                        long value = exchange.getContext().getTypeConverter().mandatoryConvertTo(long.class, exchange, offsetMatcher.group(2).trim());
+                        offsets.add(offsetMatcher.group(1).equals("+") ? value : -value);
+                    } catch (NoTypeConversionAvailableException e) {
+                        throw ObjectHelper.wrapCamelExecutionException(exchange, e);
+                    }
+                }
+
                 Date date;
                 if ("now".equals(command)) {
                     date = new Date();
@@ -1720,13 +1947,27 @@ public final class ExpressionBuilder {
                     throw new IllegalArgumentException("Command not supported for dateExpression: " + command);
                 }
 
-                SimpleDateFormat df = new SimpleDateFormat(pattern);
-                return df.format(date);
+                // Apply offsets
+                long dateAsLong = date.getTime();
+                for (long offset : offsets) {
+                    dateAsLong += offset;
+                }
+                date = new Date(dateAsLong);
+
+                if (pattern != null && !pattern.isEmpty()) {
+                    SimpleDateFormat df = new SimpleDateFormat(pattern);
+                    if (timezone != null && !timezone.isEmpty()) {
+                        df.setTimeZone(TimeZone.getTimeZone(timezone));
+                    }
+                    return df.format(date);
+                } else {
+                    return date;
+                }
             }
 
             @Override
             public String toString() {
-                return "date(" + command + ":" + pattern + ")";
+                return "date(" + commandWithOffsets + ":" + pattern + ":" + timezone + ")";
             }
         };
     }
@@ -1751,7 +1992,7 @@ public final class ExpressionBuilder {
             }
         };
     }
-   
+
     public static Expression beanExpression(final String expression) {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
@@ -1770,13 +2011,13 @@ public final class ExpressionBuilder {
             }
         };
     }
-    
+
     public static Expression beanExpression(final Class<?> beanType, final String methodName) {
         return BeanLanguage.bean(beanType, methodName);
     }
 
     public static Expression beanExpression(final Object bean, final String methodName) {
-        return BeanLanguage.bean(bean, methodName);        
+        return BeanLanguage.bean(bean, methodName);
     }
 
     public static Expression beanExpression(final String beanRef, final String methodName) {
@@ -2027,7 +2268,7 @@ public final class ExpressionBuilder {
         return constantExpression(str);
     }
 
-    public static Expression propertiesComponentExpression(final String key, final String locations) {
+    public static Expression propertiesComponentExpression(final String key, final String locations, final String defaultValue) {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
                 String text = simpleExpression(key).evaluate(exchange, String.class);
@@ -2038,7 +2279,7 @@ public final class ExpressionBuilder {
                         // getComponent will create a new component if none already exists
                         Component component = exchange.getContext().getComponent("properties");
                         PropertiesComponent pc = exchange.getContext().getTypeConverter()
-                                .mandatoryConvertTo(PropertiesComponent.class, component);
+                            .mandatoryConvertTo(PropertiesComponent.class, component);
                         // enclose key with {{ }} to force parsing
                         String[] paths = text2.split(",");
                         return pc.parseUri(pc.getPrefixToken() + text + pc.getSuffixToken(), paths);
@@ -2047,14 +2288,18 @@ public final class ExpressionBuilder {
                         Component component = exchange.getContext().hasComponent("properties");
                         if (component == null) {
                             throw new IllegalArgumentException("PropertiesComponent with name properties must be defined"
-                                    + " in CamelContext to support property placeholders in expressions");
+                                + " in CamelContext to support property placeholders in expressions");
                         }
                         PropertiesComponent pc = exchange.getContext().getTypeConverter()
-                                .mandatoryConvertTo(PropertiesComponent.class, component);
+                            .mandatoryConvertTo(PropertiesComponent.class, component);
                         // enclose key with {{ }} to force parsing
                         return pc.parseUri(pc.getPrefixToken() + text + pc.getSuffixToken());
                     }
                 } catch (Exception e) {
+                    // property with key not found, use default value if provided
+                    if (defaultValue != null) {
+                        return defaultValue;
+                    }
                     throw ObjectHelper.wrapRuntimeCamelException(e);
                 }
             }
@@ -2112,6 +2357,24 @@ public final class ExpressionBuilder {
     }
 
     /**
+     * Returns an iterator to skip (iterate) the given expression
+     */
+    public static Expression skipExpression(final String expression, final int number) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                // use simple language
+                Expression exp = exchange.getContext().resolveLanguage("simple").createExpression(expression);
+                return ExpressionBuilder.skipIteratorExpression(exp, number).evaluate(exchange, Object.class);
+            }
+
+            @Override
+            public String toString() {
+                return "skip(" + expression + "," + number + ")";
+            }
+        };
+    }
+
+    /**
      * Returns an iterator to collate (iterate) the given expression
      */
     public static Expression collateExpression(final String expression, final int group) {
@@ -2159,7 +2422,7 @@ public final class ExpressionBuilder {
                         def.setShowHeaders(true);
                         def.setStyle(DefaultExchangeFormatter.OutputStyle.Fixed);
                         try {
-                            Integer maxChars = CamelContextHelper.parseInteger(camelContext, camelContext.getProperty(Exchange.LOG_DEBUG_BODY_MAX_CHARS));
+                            Integer maxChars = CamelContextHelper.parseInteger(camelContext, camelContext.getGlobalOption(Exchange.LOG_DEBUG_BODY_MAX_CHARS));
                             if (maxChars != null) {
                                 def.setMaxChars(maxChars);
                             }
@@ -2187,7 +2450,7 @@ public final class ExpressionBuilder {
         private final String toStringValue;
         private final KeyedEntityRetrievalStrategy keyedEntityRetrievalStrategy;
 
-        KeyedOgnlExpressionAdapter(String ognl, String toStringValue, 
+        KeyedOgnlExpressionAdapter(String ognl, String toStringValue,
                                    KeyedEntityRetrievalStrategy keyedEntityRetrievalStrategy) {
             this.ognl = ognl;
             this.toStringValue = toStringValue;
@@ -2201,19 +2464,29 @@ public final class ExpressionBuilder {
                 return property;
             }
 
+
             // Split ognl except when this is not a Map, Array
             // and we would like to keep the dots within the key name
             List<String> methods = OgnlHelper.splitOgnl(ognl);
 
+            String key = methods.get(0);
+            String keySuffix = "";
+            // if ognl starts with a key inside brackets (eg: [foo.bar])
+            // remove starting and ending brackets from key
+            if (key.startsWith("[") && key.endsWith("]")) {
+                key = StringHelper.removeLeadingAndEndingQuotes(key.substring(1, key.length() - 1));
+                keySuffix = StringHelper.after(methods.get(0), key);
+            }
             // remove any OGNL operators so we got the pure key name
-            String key = OgnlHelper.removeOperators(methods.get(0));
+            key = OgnlHelper.removeOperators(key);
+
 
             property = keyedEntityRetrievalStrategy.getKeyedEntity(exchange, key);
             if (property == null) {
                 return null;
             }
             // the remainder is the rest of the ognl without the key
-            String remainder = ObjectHelper.after(ognl, key);
+            String remainder = ObjectHelper.after(ognl, key + keySuffix);
             return new MethodCallExpression(property, remainder).evaluate(exchange);
         }
 
@@ -2228,6 +2501,6 @@ public final class ExpressionBuilder {
         public interface KeyedEntityRetrievalStrategy {
             Object getKeyedEntity(Exchange exchange, String key);
         }
-    };
+    }
 
 }

@@ -25,15 +25,18 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Processor;
+import org.apache.camel.Producer;
 import org.apache.camel.component.netty4.NettyComponent;
 import org.apache.camel.component.netty4.NettyConfiguration;
 import org.apache.camel.component.netty4.NettyServerBootstrapConfiguration;
 import org.apache.camel.component.netty4.http.handlers.HttpServerMultiplexChannelHandler;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
+import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.RestApiConsumerFactory;
 import org.apache.camel.spi.RestConfiguration;
 import org.apache.camel.spi.RestConsumerFactory;
+import org.apache.camel.spi.RestProducerFactory;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.HostUtils;
 import org.apache.camel.util.IntrospectionSupport;
@@ -47,15 +50,18 @@ import org.slf4j.LoggerFactory;
 /**
  * Netty HTTP based component.
  */
-public class NettyHttpComponent extends NettyComponent implements HeaderFilterStrategyAware, RestConsumerFactory, RestApiConsumerFactory {
+public class NettyHttpComponent extends NettyComponent implements HeaderFilterStrategyAware, RestConsumerFactory, RestApiConsumerFactory, RestProducerFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(NettyHttpComponent.class);
 
     // factories which is created by this component and therefore manage their lifecycles
     private final Map<Integer, HttpServerConsumerChannelFactory> multiplexChannelHandlers = new HashMap<Integer, HttpServerConsumerChannelFactory>();
     private final Map<String, HttpServerBootstrapFactory> bootstrapFactories = new HashMap<String, HttpServerBootstrapFactory>();
+    @Metadata(label = "advanced")
     private NettyHttpBinding nettyHttpBinding;
+    @Metadata(label = "advanced")
     private HeaderFilterStrategy headerFilterStrategy;
+    @Metadata(label = "security")
     private NettyHttpSecurityConfiguration securityConfiguration;
     
     public NettyHttpComponent() {
@@ -221,6 +227,15 @@ public class NettyHttpComponent extends NettyComponent implements HeaderFilterSt
         this.nettyHttpBinding = nettyHttpBinding;
     }
 
+    @Override
+    public NettyHttpConfiguration getConfiguration() {
+        return (NettyHttpConfiguration) super.getConfiguration();
+    }
+
+    public void setConfiguration(NettyHttpConfiguration configuration) {
+        super.setConfiguration(configuration);
+    }
+
     public HeaderFilterStrategy getHeaderFilterStrategy() {
         return headerFilterStrategy;
     }
@@ -375,6 +390,37 @@ public class NettyHttpComponent extends NettyComponent implements HeaderFilterSt
         }
 
         return consumer;
+    }
+
+    @Override
+    public Producer createProducer(CamelContext camelContext, String host,
+                                   String verb, String basePath, String uriTemplate, String queryParameters,
+                                   String consumes, String produces, Map<String, Object> parameters) throws Exception {
+
+        // avoid leading slash
+        basePath = FileUtil.stripLeadingSeparator(basePath);
+        uriTemplate = FileUtil.stripLeadingSeparator(uriTemplate);
+
+        // get the endpoint
+        String url = "netty4-http:" + host;
+        if (!ObjectHelper.isEmpty(basePath)) {
+            url += "/" + basePath;
+        }
+        if (!ObjectHelper.isEmpty(uriTemplate)) {
+            url += "/" + uriTemplate;
+        }
+
+        NettyHttpEndpoint endpoint = camelContext.getEndpoint(url, NettyHttpEndpoint.class);
+        if (parameters != null && !parameters.isEmpty()) {
+            setProperties(camelContext, endpoint, parameters);
+        }
+        String path = uriTemplate != null ? uriTemplate : basePath;
+        endpoint.setHeaderFilterStrategy(new NettyHttpRestHeaderFilterStrategy(path, queryParameters));
+
+        // the endpoint must be started before creating the producer
+        ServiceHelper.startService(endpoint);
+
+        return endpoint.createProducer();
     }
 
     @Override

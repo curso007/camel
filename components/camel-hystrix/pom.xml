@@ -22,15 +22,19 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>components</artifactId>
-    <version>2.18-SNAPSHOT</version>
+    <version>2.19.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-hystrix</artifactId>
   <packaging>jar</packaging>
   <name>Camel :: Hystrix</name>
-  <description>Camel Hystrix support</description>
+  <description>Circuit Breaker EIP using Netflix Hystrix</description>
 
   <properties>
+    <!-- use by camel-catalog -->
+    <firstVersion>2.18.0</firstVersion>
+    <label>eip,microservice</label>
+
     <camel.osgi.export.pkg>org.apache.camel.component.hystrix.*</camel.osgi.export.pkg>
     <camel.osgi.export.service>org.apache.camel.spi.ComponentResolver;component=hystrix</camel.osgi.export.service>
   </properties>
@@ -71,10 +75,20 @@
       <groupId>org.apache.camel</groupId>
       <artifactId>camel-test-blueprint</artifactId>
       <scope>test</scope>
+    </dependency>       
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

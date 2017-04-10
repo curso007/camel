@@ -21,13 +21,14 @@ import java.util.Map;
 import io.fabric8.kubernetes.api.model.DoneablePersistentVolume;
 import io.fabric8.kubernetes.api.model.PersistentVolume;
 import io.fabric8.kubernetes.api.model.PersistentVolumeList;
-import io.fabric8.kubernetes.client.dsl.ClientNonNamespaceOperation;
-import io.fabric8.kubernetes.client.dsl.ClientResource;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.component.kubernetes.KubernetesConstants;
 import org.apache.camel.component.kubernetes.KubernetesEndpoint;
 import org.apache.camel.impl.DefaultProducer;
+import org.apache.camel.util.MessageHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,8 @@ public class KubernetesPersistentVolumesProducer extends DefaultProducer {
     protected void doList(Exchange exchange, String operation) throws Exception {
         PersistentVolumeList persistentVolumeList = getEndpoint()
                 .getKubernetesClient().persistentVolumes().list();
+        
+        MessageHelper.copyHeaders(exchange.getIn(), exchange.getOut(), true);
         exchange.getOut().setBody(persistentVolumeList.getItems());
     }
 
@@ -91,12 +94,14 @@ public class KubernetesPersistentVolumesProducer extends DefaultProducer {
         Map<String, String> labels = exchange.getIn().getHeader(
                 KubernetesConstants.KUBERNETES_PERSISTENT_VOLUMES_LABELS,
                 Map.class);
-        ClientNonNamespaceOperation<PersistentVolume, PersistentVolumeList, DoneablePersistentVolume, ClientResource<PersistentVolume, DoneablePersistentVolume>> pvs; 
+        NonNamespaceOperation<PersistentVolume, PersistentVolumeList, DoneablePersistentVolume, Resource<PersistentVolume, DoneablePersistentVolume>> pvs; 
         pvs = getEndpoint().getKubernetesClient().persistentVolumes();
         for (Map.Entry<String, String> entry : labels.entrySet()) {
             pvs.withLabel(entry.getKey(), entry.getValue());
         }
         pvList = pvs.list();
+        
+        MessageHelper.copyHeaders(exchange.getIn(), exchange.getOut(), true);
         exchange.getOut().setBody(pvList.getItems());
     }
 
@@ -112,6 +117,8 @@ public class KubernetesPersistentVolumesProducer extends DefaultProducer {
                     "Get a specific Persistent Volume require specify a Persistent Volume name");
         }
         pv = getEndpoint().getKubernetesClient().persistentVolumes().withName(pvName).get();
+        
+        MessageHelper.copyHeaders(exchange.getIn(), exchange.getOut(), true);
         exchange.getOut().setBody(pv);
     }
 }

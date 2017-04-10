@@ -17,13 +17,13 @@
 package org.apache.camel.component.netty4.http;
 
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.ReferenceCounted;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.component.netty4.NettyConfiguration;
@@ -75,18 +75,15 @@ public class NettyHttpProducer extends NettyProducer {
             exchange.getIn().removeHeader("host");
         }
 
-        // need to release the request when we are done
-        exchange.addOnCompletion(new SynchronizationAdapter() {
-            @Override
-            public void onDone(Exchange exchange) {
-                if (request instanceof ReferenceCounted) {
-                    if (((ReferenceCounted) request).refCnt() > 0) {
-                        log.debug("Releasing Netty HttpRequest ByteBuf");
-                        ReferenceCountUtil.release(request);
-                    }
+        if (getEndpoint().getCookieHandler() != null) {
+            Map<String, List<String>> cookieHeaders = getEndpoint().getCookieHandler().loadCookies(exchange, new URI(actualUri));
+            for (Map.Entry<String, List<String>> entry : cookieHeaders.entrySet()) {
+                String key = entry.getKey();
+                if (entry.getValue().size() > 0) {
+                    request.headers().add(key, entry.getValue());
                 }
             }
-        });
+        }
 
         return request;
     }

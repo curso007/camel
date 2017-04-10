@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 /**
  * To send and receive messages from a XMPP (chat) server.
  */
-@UriEndpoint(scheme = "xmpp", title = "XMPP", syntax = "xmpp:host:port/participant", alternativeSyntax = "xmpp:user:password@host:port/participant",
+@UriEndpoint(firstVersion = "1.0.0", scheme = "xmpp", title = "XMPP", syntax = "xmpp:host:port/participant", alternativeSyntax = "xmpp:user:password@host:port/participant",
         consumerClass = XmppConsumer.class, label = "chat,messaging")
 public class XmppEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware {
     private static final Logger LOG = LoggerFactory.getLogger(XmppEndpoint.class);
@@ -111,6 +111,9 @@ public class XmppEndpoint extends DefaultEndpoint implements HeaderFilterStrateg
             if (isPubsub()) {
                 return createPubSubProducer();
             }
+            if (isDoc()) {
+                return createDirectProducer();
+            }
             if (getParticipant() == null) {
                 throw new IllegalArgumentException("No room or participant configured on this endpoint: " + this);
             }
@@ -124,6 +127,10 @@ public class XmppEndpoint extends DefaultEndpoint implements HeaderFilterStrateg
 
     public Producer createPrivateChatProducer(String participant) throws Exception {
         return new XmppPrivateChatProducer(this, participant);
+    }
+
+    public Producer createDirectProducer() throws Exception {
+        return new XmppDirectProducer(this);
     }
 
     public Producer createPubSubProducer() throws Exception {

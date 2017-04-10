@@ -32,11 +32,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.camel.AttachmentObjects;
 import org.apache.camel.Attachments;
 import org.apache.camel.Body;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangeException;
+import org.apache.camel.ExchangeProperties;
 import org.apache.camel.ExchangeProperty;
 import org.apache.camel.Expression;
 import org.apache.camel.Handler;
@@ -46,6 +48,7 @@ import org.apache.camel.Message;
 import org.apache.camel.OutHeaders;
 import org.apache.camel.Properties;
 import org.apache.camel.Property;
+import org.apache.camel.PropertyInject;
 import org.apache.camel.builder.ExpressionBuilder;
 import org.apache.camel.language.LanguageAnnotation;
 import org.apache.camel.spi.Registry;
@@ -213,6 +216,11 @@ public class BeanInfo {
                 if (!methodName.endsWith(")")) {
                     throw new IllegalArgumentException("Method should end with parenthesis, was " + methodName);
                 }
+                // and there must be an even number of parenthesis in the syntax
+                // (we can use betweenOuterPair as it return null if the syntax is invalid)
+                if (ObjectHelper.betweenOuterPair(methodName, '(', ')') == null) {
+                    throw new IllegalArgumentException("Method should have even pair of parenthesis, was " + methodName);
+                }
             }
             boolean emptyParameters = methodName.endsWith("()");
 
@@ -321,13 +329,18 @@ public class BeanInfo {
         }
 
         Set<Method> overrides = new HashSet<Method>();
-        Set<Method> bridges = new HashSet<Method>();
 
         // do not remove duplicates form class from the Java itself as they have some "duplicates" we need
         boolean javaClass = clazz.getName().startsWith("java.") || clazz.getName().startsWith("javax.");
         if (!javaClass) {
             // it may have duplicate methods already, even from declared or from interfaces + declared
             for (Method source : methods) {
+
+                // skip bridge methods in duplicate checks (as the bridge method is inserted by the compiler due to type erasure)
+                if (source.isBridge()) {
+                    continue;
+                }
+
                 for (Method target : methods) {
                     // skip ourselves
                     if (ObjectHelper.isOverridingMethod(source, target, true)) {
@@ -347,10 +360,15 @@ public class BeanInfo {
         if (Modifier.isPublic(clazz.getModifiers())) {
             // add additional interface methods
             List<Method> extraMethods = getInterfaceMethods(clazz);
-            for (Method target : extraMethods) {
-                for (Method source : methods) {
+            for (Method source : extraMethods) {
+                for (Method target : methods) {
                     if (ObjectHelper.isOverridingMethod(source, target, false)) {
-                        overrides.add(target);
+                        overrides.add(source);
+                    }
+                }
+                for (Method target : methodMap.keySet()) {
+                    if (ObjectHelper.isOverridingMethod(source, target, false)) {
+                        overrides.add(source);
                     }
                 }
             }
@@ -387,10 +405,8 @@ public class BeanInfo {
 
         MethodInfo methodInfo = createMethodInfo(clazz, method);
 
-        // methods already registered should be preferred to use instead of super classes of existing methods
-        // we want to us the method from the sub class over super classes, so if we have already registered
-        // the method then use it (we are traversing upwards: sub (child) -> super (farther) )
-        MethodInfo existingMethodInfo = overridesExistingMethod(methodInfo);
+        // Foster the use of a potentially already registered most specific override
+        MethodInfo existingMethodInfo = findMostSpecificOverride(methodInfo);
         if (existingMethodInfo != null) {
             LOG.trace("This method is already overridden in a subclass, so the method from the sub class is preferred: {}", existingMethodInfo);
             return existingMethodInfo;
@@ -887,20 +903,24 @@ public class BeanInfo {
     }
 
     /**
-     * Does the given method info override an existing method registered before (from a subclass)
+     * Gets the most specific override of a given method, if any. Indeed,
+     * overrides may have already been found while inspecting sub classes. Or
+     * the given method could override an interface extra method.
      *
-     * @param methodInfo  the method to test
-     * @return the already registered method to use, null if not overriding any
+     * @param proposedMethodInfo the method for which a more specific override is
+     *            searched
+     * @return The already registered most specific override if any, otherwise
+     *         <code>null</code>
      */
-    private MethodInfo overridesExistingMethod(MethodInfo methodInfo) {
-        for (MethodInfo info : methodMap.values()) {
-            Method source = info.getMethod();
-            Method target = methodInfo.getMethod();
+    private MethodInfo findMostSpecificOverride(MethodInfo proposedMethodInfo) {
+        for (MethodInfo alreadyRegisteredMethodInfo : methodMap.values()) {
+            Method alreadyRegisteredMethod = alreadyRegisteredMethodInfo.getMethod();
+            Method proposedMethod = proposedMethodInfo.getMethod();
 
-            boolean override = ObjectHelper.isOverridingMethod(source, target);
-            if (override) {
-                // same name, same parameters, then its overrides an existing class
-                return info;
+            if (ObjectHelper.isOverridingMethod(proposedMethod, alreadyRegisteredMethod, false)) {
+                return alreadyRegisteredMethodInfo;
+            } else if (ObjectHelper.isOverridingMethod(alreadyRegisteredMethod, proposedMethod, false)) {
+                return proposedMethodInfo;
             }
         }
 
@@ -946,7 +966,9 @@ public class BeanInfo {
 
     private Expression createParameterUnmarshalExpressionForAnnotation(Class<?> clazz, Method method, 
             Class<?> parameterType, Annotation annotation) {
-        if (annotation instanceof Attachments) {
+        if (annotation instanceof AttachmentObjects) {
+            return ExpressionBuilder.attachmentObjectsExpression();
+        } else if (annotation instanceof Attachments) {
             return ExpressionBuilder.attachmentsExpression();
         } else if (annotation instanceof Property) {
             Property propertyAnnotation = (Property)annotation;
@@ -955,7 +977,9 @@ public class BeanInfo {
             ExchangeProperty propertyAnnotation = (ExchangeProperty)annotation;
             return ExpressionBuilder.exchangePropertyExpression(propertyAnnotation.value());
         } else if (annotation instanceof Properties) {
-            return ExpressionBuilder.propertiesExpression();
+            return ExpressionBuilder.exchangePropertiesExpression();
+        } else if (annotation instanceof ExchangeProperties) {
+            return ExpressionBuilder.exchangePropertiesExpression();
         } else if (annotation instanceof Header) {
             Header headerAnnotation = (Header)annotation;
             return ExpressionBuilder.headerExpression(headerAnnotation.value());
@@ -965,6 +989,10 @@ public class BeanInfo {
             return ExpressionBuilder.outHeadersExpression();
         } else if (annotation instanceof ExchangeException) {
             return ExpressionBuilder.exchangeExceptionExpression(CastUtils.cast(parameterType, Exception.class));
+        } else if (annotation instanceof PropertyInject) {
+            PropertyInject propertyAnnotation = (PropertyInject) annotation;
+            Expression inject = ExpressionBuilder.propertiesComponentExpression(propertyAnnotation.value(), null, propertyAnnotation.defaultValue());
+            return ExpressionBuilder.convertToExpression(inject, parameterType);
         } else {
             LanguageAnnotation languageAnnotation = annotation.annotationType().getAnnotation(LanguageAnnotation.class);
             if (languageAnnotation != null) {
@@ -1183,7 +1211,7 @@ public class BeanInfo {
         }
 
         // sort the methods by name A..Z
-        Collections.sort(methods, new Comparator<MethodInfo>() {
+        methods.sort(new Comparator<MethodInfo>() {
             public int compare(MethodInfo o1, MethodInfo o2) {
                 return o1.getMethod().getName().compareTo(o2.getMethod().getName());
             }

@@ -7,8 +7,8 @@ found in an `inbox` directory to a box.com account.
 
 #### Camel component used in this example
 
-* camel-code
-* camel-bom
+* camel-spring-dm
+* camel-box
 
 ### Build
 
@@ -18,15 +18,17 @@ First you will need to compile the example:
 
 ### Run
 
-To run the example on Apache Karaf 3.x or newer
+To run the example on Apache Karaf 4.x or newer
 
 #### Step 1
 
-Launch karaf
+Launch Karaf with:
+
+  bin/karaf
 
 #### Step 2
 
-Add features required into Karak
+Add features required into Karaf
 
 	feature:repo-add camel ${version}
 	feature:install camel-spring-dm
@@ -44,9 +46,9 @@ set to your box account credentials.
 
 #### Step 4
 
-Deploy the example into Karak
+Deploy the example into Karaf
 
-	osgi:install -s mvn:org.apache.camel/camel-example-box-osgi/${version}
+	install -s mvn:org.apache.camel/camel-example-box-osgi/${version}
 
 #### Step 5
 

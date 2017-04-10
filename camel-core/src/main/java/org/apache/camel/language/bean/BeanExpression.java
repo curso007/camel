@@ -31,11 +31,11 @@ import org.apache.camel.component.bean.BeanProcessor;
 import org.apache.camel.component.bean.ConstantBeanHolder;
 import org.apache.camel.component.bean.ConstantTypeBeanHolder;
 import org.apache.camel.component.bean.RegistryBean;
+import org.apache.camel.language.simple.SimpleLanguage;
 import org.apache.camel.util.KeyValueHolder;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.OgnlHelper;
 import org.apache.camel.util.StringHelper;
-import org.apache.camel.util.StringQuoteHelper;
 
 /**
  * Evaluates an expression using a bean method invocation
@@ -332,7 +332,13 @@ public class BeanExpression implements Expression, Predicate {
 
                 // if there was a key then we need to lookup using the key
                 if (key != null) {
-                    result = lookupResult(resultExchange, key, result, nullSafe, ognlPath, holder.getBean());
+                    // if key is a nested simple expression then re-evaluate that again
+                    if (SimpleLanguage.hasSimpleFunction(key)) {
+                        key = SimpleLanguage.expression(key).evaluate(exchange, String.class);
+                    }
+                    if (key != null) {
+                        result = lookupResult(resultExchange, key, result, nullSafe, ognlPath, holder.getBean());
+                    }
                 }
 
                 // check null safe for null results
@@ -382,7 +388,7 @@ public class BeanExpression implements Expression, Predicate {
                             }
                         }
                     }
-                    if (num != null && num >= 0 && list.size() > num - 1) {
+                    if (num != null && num >= 0 && list.size() > num - 1 && list.size() > 0) {
                         return list.get(num);
                     }
                     if (!nullSafe) {

@@ -69,13 +69,13 @@ import org.springframework.util.ErrorHandler;
  * This component uses Spring JMS.
  */
 @ManagedResource(description = "Managed JMS Endpoint")
-@UriEndpoint(scheme = "jms", title = "JMS", syntax = "jms:destinationType:destinationName", consumerClass = JmsConsumer.class, label = "messaging")
+@UriEndpoint(firstVersion = "1.0.0", scheme = "jms", title = "JMS", syntax = "jms:destinationType:destinationName", consumerClass = JmsConsumer.class, label = "messaging")
 public class JmsEndpoint extends DefaultEndpoint implements AsyncEndpoint, HeaderFilterStrategyAware, MultipleConsumersSupport, Service {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicInteger runningMessageListeners = new AtomicInteger();
     private boolean pubSubDomain;
     private JmsBinding binding;
-    @UriPath(defaultValue = "queue", enums = "queue,topic,temp:queue,temp:topic", description = "The kind of destination to use")
+    @UriPath(defaultValue = "queue", enums = "queue,topic,temp-queue,temp-topic", description = "The kind of destination to use")
     private String destinationType;
     @UriPath(description = "Name of the queue or topic to use as destination")
     @Metadata(required = "true")
@@ -229,7 +229,7 @@ public class JmsEndpoint extends DefaultEndpoint implements AsyncEndpoint, Heade
             // do nothing, as we're working with a DefaultJmsMessageListenerContainer with an explicit DefaultTaskExecutorType,
             // so DefaultJmsMessageListenerContainer#createDefaultTaskExecutor will handle the creation
             log.debug("Deferring creation of TaskExecutor for listener container: {} as per policy: {}",
-                    listenerContainer, configuration.getDefaultTaskExecutorType());
+                    listenerContainer, getDefaultTaskExecutorType());
         }
 
         // set a default transaction name if none provided
@@ -1103,6 +1103,16 @@ public class JmsEndpoint extends DefaultEndpoint implements AsyncEndpoint, Heade
     @ManagedAttribute
     public void setTransferExchange(boolean transferExchange) {
         getConfiguration().setTransferExchange(transferExchange);
+    }
+
+    @ManagedAttribute
+    public boolean isAllowSerializedHeaders() {
+        return getConfiguration().isAllowSerializedHeaders();
+    }
+
+    @ManagedAttribute
+    public void setAllowSerializedHeaders(boolean allowSerializedHeaders) {
+        getConfiguration().setAllowSerializedHeaders(allowSerializedHeaders);
     }
 
     @ManagedAttribute

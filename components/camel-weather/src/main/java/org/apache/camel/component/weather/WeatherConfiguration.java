@@ -17,7 +17,6 @@
 package org.apache.camel.component.weather;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
@@ -45,16 +44,18 @@ public class WeatherConfiguration {
     @UriParam @Metadata(required = "true")
     private String appid;
     @UriParam
+    private WeatherApi weatherApi;
+    @UriParam(label = "filter")
     private String location = "";
-    @UriParam
+    @UriParam(label = "filter")
     private String lat;
-    @UriParam
+    @UriParam(label = "filter")
     private String lon;
-    @UriParam
+    @UriParam(label = "filter")
     private String rightLon;
-    @UriParam
+    @UriParam(label = "filter")
     private String topLat;
-    @UriParam
+    @UriParam(label = "filter")
     private Integer zoom;
     @UriParam
     private String period = "";
@@ -66,14 +67,12 @@ public class WeatherConfiguration {
     private WeatherLanguage language = en;
     @UriParam
     private String headerName;
-    @UriParam
+    @UriParam(label = "filter")
     private String zip;
-    @UriParam(javaType = "java.lang.String")
+    @UriParam(label = "filter", javaType = "java.lang.String")
     private List<String> ids;
-    @UriParam
+    @UriParam(label = "filter")
     private Integer cnt;
-    @UriParam
-    private WeatherApi weatherApi;
 
     @UriParam(label = "proxy")
     private String proxyHost;
@@ -81,9 +80,9 @@ public class WeatherConfiguration {
     private Integer proxyPort;
     @UriParam(label = "proxy")
     private String proxyAuthMethod;
-    @UriParam(label = "proxy")
+    @UriParam(label = "proxy", secret = true)
     private String proxyAuthUsername;
-    @UriParam(label = "proxy")
+    @UriParam(label = "proxy", secret = true)
     private String proxyAuthPassword;
     @UriParam(label = "proxy")
     private String proxyAuthDomain;
@@ -91,7 +90,6 @@ public class WeatherConfiguration {
     private String proxyAuthHost;
     @UriParam(label = "advanced")
     private HttpConnectionManager httpConnectionManager;
-
 
     public WeatherConfiguration(WeatherComponent component) {
         this.component = notNull(component, "component");
@@ -367,7 +365,7 @@ public class WeatherConfiguration {
     }
 
     public List<String> getIds() {
-        return (List<String>) ids;
+        return ids;
     }
 
     /**

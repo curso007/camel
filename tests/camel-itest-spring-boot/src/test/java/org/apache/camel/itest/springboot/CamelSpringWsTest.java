@@ -17,7 +17,6 @@
 package org.apache.camel.itest.springboot;
 
 import org.apache.camel.itest.springboot.util.ArquillianPackager;
-import org.apache.camel.itest.springboot.util.DependencyResolver;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
@@ -36,8 +35,8 @@ public class CamelSpringWsTest extends AbstractSpringBootTestSupport {
     public static ITestConfig createTestConfig() {
         return new ITestConfigBuilder()
                 .module(inferModuleName(CamelSpringWsTest.class))
-                .dependency(DependencyResolver.withVersion("org.springframework.boot:spring-boot-starter-web"))
-                .dependency(DependencyResolver.withVersion("org.springframework:spring-webmvc"))
+                //.dependency(DependencyResolver.withVersion("org.springframework.boot:spring-boot-starter-web"))
+                //.dependency(DependencyResolver.withVersion("org.springframework:spring-webmvc"))
                 .build();
     }
 

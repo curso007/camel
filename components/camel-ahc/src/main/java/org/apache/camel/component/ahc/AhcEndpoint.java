@@ -27,6 +27,7 @@ import org.apache.camel.AsyncEndpoint;
 import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
+import org.apache.camel.http.common.cookie.CookieHandler;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
@@ -44,7 +45,7 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 /**
  * To call external HTTP services using <a href="http://github.com/sonatype/async-http-client">Async Http Client</a>.
  */
-@UriEndpoint(scheme = "ahc", title = "AHC", syntax = "ahc:httpUri", producerOnly = true, label = "http", lenientProperties = true)
+@UriEndpoint(firstVersion = "2.8.0", scheme = "ahc", title = "AHC", syntax = "ahc:httpUri", producerOnly = true, label = "http", lenientProperties = true)
 public class AhcEndpoint extends DefaultEndpoint implements AsyncEndpoint, HeaderFilterStrategyAware {
 
     private AsyncHttpClient client;
@@ -60,16 +61,20 @@ public class AhcEndpoint extends DefaultEndpoint implements AsyncEndpoint, Heade
     private int bufferSize = 4 * 1024;
     @UriParam
     private HeaderFilterStrategy headerFilterStrategy = new HttpHeaderFilterStrategy();
-    @UriParam
+    @UriParam(label = "advanced")
     private AhcBinding binding;
     @UriParam(label = "security")
     private SSLContextParameters sslContextParameters;
     @UriParam(label = "advanced")
     private AsyncHttpClientConfig clientConfig;
-    @UriParam(label = "advanced", prefix = "asyncHttpClientConfig.", multiValue = true)
+    @UriParam(label = "advanced", prefix = "clientConfig.", multiValue = true)
     private Map<String, Object> clientConfigOptions;
+    @UriParam(label = "advanced,security", prefix = "clientConfig.realm.", multiValue = true)
+    private Map<String, Object> clientConfigRealmOptions;
     @UriParam(label = "producer", defaultValue = "false")
     private boolean connectionClose;
+    @UriParam(label = "producer")
+    private CookieHandler cookieHandler;
 
     public AhcEndpoint(String endpointUri, AhcComponent component, URI httpUri) {
         super(endpointUri, component);
@@ -237,6 +242,17 @@ public class AhcEndpoint extends DefaultEndpoint implements AsyncEndpoint, Heade
         this.clientConfigOptions = clientConfigOptions;
     }
 
+    public Map<String, Object> getClientConfigRealmOptions() {
+        return clientConfigRealmOptions;
+    }
+
+    /**
+     * To configure the AsyncHttpClientConfig Realm using the key/values from the Map.
+     */
+    public void setClientConfigRealmOptions(Map<String, Object> clientConfigRealmOptions) {
+        this.clientConfigRealmOptions = clientConfigRealmOptions;
+    }
+
     public boolean isConnectionClose() {
         return connectionClose;
     }
@@ -246,6 +262,17 @@ public class AhcEndpoint extends DefaultEndpoint implements AsyncEndpoint, Heade
      */
     public void setConnectionClose(boolean connectionClose) {
         this.connectionClose = connectionClose;
+    }
+
+    public CookieHandler getCookieHandler() {
+        return cookieHandler;
+    }
+
+    /**
+     * Configure a cookie handler to maintain a HTTP session
+     */
+    public void setCookieHandler(CookieHandler cookieHandler) {
+        this.cookieHandler = cookieHandler;
     }
 
     @Override

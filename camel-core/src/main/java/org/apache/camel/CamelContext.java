@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -29,19 +30,23 @@ import org.apache.camel.api.management.mbean.ManagedCamelContextMBean;
 import org.apache.camel.api.management.mbean.ManagedProcessorMBean;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
 import org.apache.camel.builder.ErrorHandlerBuilder;
-import org.apache.camel.impl.DeferServiceStartupListener;
+import org.apache.camel.catalog.RuntimeCamelCatalog;
 import org.apache.camel.model.DataFormatDefinition;
+import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RoutesDefinition;
-import org.apache.camel.model.remote.ServiceCallConfigurationDefinition;
+import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.model.rest.RestsDefinition;
+import org.apache.camel.model.transformer.TransformerDefinition;
+import org.apache.camel.model.validator.ValidatorDefinition;
 import org.apache.camel.spi.AsyncProcessorAwaitManager;
 import org.apache.camel.spi.CamelContextNameStrategy;
 import org.apache.camel.spi.ClassResolver;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.spi.DataFormatResolver;
+import org.apache.camel.spi.DataType;
 import org.apache.camel.spi.Debugger;
 import org.apache.camel.spi.EndpointRegistry;
 import org.apache.camel.spi.EndpointStrategy;
@@ -53,6 +58,7 @@ import org.apache.camel.spi.Injector;
 import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.Language;
 import org.apache.camel.spi.LifecycleStrategy;
+import org.apache.camel.spi.LogListener;
 import org.apache.camel.spi.ManagementMBeanAssembler;
 import org.apache.camel.spi.ManagementNameStrategy;
 import org.apache.camel.spi.ManagementStrategy;
@@ -62,6 +68,7 @@ import org.apache.camel.spi.NodeIdFactory;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.spi.ProcessorFactory;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.spi.ReloadStrategy;
 import org.apache.camel.spi.RestConfiguration;
 import org.apache.camel.spi.RestRegistry;
 import org.apache.camel.spi.RoutePolicyFactory;
@@ -70,16 +77,20 @@ import org.apache.camel.spi.RuntimeEndpointRegistry;
 import org.apache.camel.spi.ServicePool;
 import org.apache.camel.spi.ShutdownStrategy;
 import org.apache.camel.spi.StreamCachingStrategy;
+import org.apache.camel.spi.Transformer;
+import org.apache.camel.spi.TransformerRegistry;
 import org.apache.camel.spi.TypeConverterRegistry;
 import org.apache.camel.spi.UnitOfWorkFactory;
 import org.apache.camel.spi.UuidGenerator;
+import org.apache.camel.spi.Validator;
+import org.apache.camel.spi.ValidatorRegistry;
 import org.apache.camel.util.LoadPropertiesException;
 
 /**
- * Interface used to represent the context used to configure routes and the
+ * Interface used to represent the CamelContext used to configure routes and the
  * policies to use during message exchanges between endpoints.
  * <p/>
- * The context offers the following methods to control the lifecycle:
+ * The CamelContext offers the following methods to control the lifecycle:
  * <ul>
  *   <li>{@link #start()}  - to start (<b>important:</b> the start method is not blocked, see more details
  *     <a href="http://camel.apache.org/running-camel-standalone-and-have-it-keep-running.html">here</a>)</li>
@@ -138,7 +149,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void stop() throws Exception;
 
     /**
-     * Gets the name (id) of the this context.
+     * Gets the name (id) of the this CamelContext.
      *
      * @return the name
      */
@@ -184,14 +195,14 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     String getManagementName();
 
     /**
-     * Gets the version of the this context.
+     * Gets the version of the this CamelContext.
      *
      * @return the version
      */
     String getVersion();
 
     /**
-     * Get the status of this context
+     * Get the status of this CamelContext
      *
      * @return the status
      */
@@ -215,8 +226,8 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     //-----------------------------------------------------------------------
 
     /**
-     * Adds a service to this context, which allows this context to control the lifecycle, ensuring
-     * the service is stopped when the context stops.
+     * Adds a service to this CamelContext, which allows this CamelContext to control the lifecycle, ensuring
+     * the service is stopped when the CamelContext stops.
      * <p/>
      * The service will also have {@link CamelContext} injected if its {@link CamelContextAware}.
      * The service will also be enlisted in JMX for management (if JMX is enabled).
@@ -228,15 +239,15 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void addService(Object object) throws Exception;
 
     /**
-     * Adds a service to this context.
+     * Adds a service to this CamelContext.
      * <p/>
      * The service will also have {@link CamelContext} injected if its {@link CamelContextAware}.
      * The service will also be enlisted in JMX for management (if JMX is enabled).
      * The service will be started, if its not already started.
      * <p/>
-     * If the option <tt>closeOnShutdown</tt> is <tt>true</tt> then this context will control the lifecycle, ensuring
-     * the service is stopped when the context stops.
-     * If the option <tt>closeOnShutdown</tt> is <tt>false</tt> then this context will not stop the service when the context stops.
+     * If the option <tt>closeOnShutdown</tt> is <tt>true</tt> then this CamelContext will control the lifecycle, ensuring
+     * the service is stopped when the CamelContext stops.
+     * If the option <tt>closeOnShutdown</tt> is <tt>false</tt> then this CamelContext will not stop the service when the CamelContext stops.
      *
      * @param object the service
      * @param stopOnShutdown whether to stop the service when this CamelContext shutdown.
@@ -245,15 +256,15 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void addService(Object object, boolean stopOnShutdown) throws Exception;
 
     /**
-     * Adds a service to this context.
+     * Adds a service to this CamelContext.
      * <p/>
      * The service will also have {@link CamelContext} injected if its {@link CamelContextAware}.
      * The service will also be enlisted in JMX for management (if JMX is enabled).
      * The service will be started, if its not already started.
      * <p/>
-     * If the option <tt>closeOnShutdown</tt> is <tt>true</tt> then this context will control the lifecycle, ensuring
-     * the service is stopped when the context stops.
-     * If the option <tt>closeOnShutdown</tt> is <tt>false</tt> then this context will not stop the service when the context stops.
+     * If the option <tt>closeOnShutdown</tt> is <tt>true</tt> then this CamelContext will control the lifecycle, ensuring
+     * the service is stopped when the CamelContext stops.
+     * If the option <tt>closeOnShutdown</tt> is <tt>false</tt> then this CamelContext will not stop the service when the CamelContext stops.
      *
      * @param object the service
      * @param stopOnShutdown whether to stop the service when this CamelContext shutdown.
@@ -264,7 +275,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void addService(Object object, boolean stopOnShutdown, boolean forceStart) throws Exception;
 
     /**
-     * Removes a service from this context.
+     * Removes a service from this CamelContext.
      * <p/>
      * The service is assumed to have been previously added using {@link #addService(Object)} method.
      * This method will <b>not</b> change the service lifecycle.
@@ -276,7 +287,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     boolean removeService(Object object) throws Exception;
 
     /**
-     * Has the given service already been added to this context?
+     * Has the given service already been added to this CamelContext?
      *
      * @param object the service
      * @return <tt>true</tt> if already added, <tt>false</tt> if not.
@@ -284,7 +295,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     boolean hasService(Object object);
 
     /**
-     * Has the given service type already been added to this context?
+     * Has the given service type already been added to this CamelContext?
      *
      * @param type the class type
      * @return the service instance or <tt>null</tt> if not already added.
@@ -298,7 +309,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      *
      * @param object the service
      * @param stopOnShutdown whether to stop the service when this CamelContext shutdown. Setting this to <tt>true</tt> will keep a reference to the service in
-     *                       this {@link CamelContext} until the context is stopped. So do not use it for short lived services.
+     *                       this {@link CamelContext} until the CamelContext is stopped. So do not use it for short lived services.
      * @throws Exception can be thrown when starting the service, which is only attempted if {@link CamelContext} has already been started when calling this method.
      */
     void deferStartService(Object object, boolean stopOnShutdown) throws Exception;
@@ -336,7 +347,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     Component hasComponent(String componentName);
 
     /**
-     * Gets a component from the context by name.
+     * Gets a component from the CamelContext by name.
      * <p/>
      * Notice the returned component will be auto-started. If you do not intend to do that
      * then use {@link #getComponent(String, boolean, boolean)}.
@@ -347,7 +358,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     Component getComponent(String componentName);
 
     /**
-     * Gets a component from the context by name.
+     * Gets a component from the CamelContext by name.
      * <p/>
      * Notice the returned component will be auto-started. If you do not intend to do that
      * then use {@link #getComponent(String, boolean, boolean)}.
@@ -360,7 +371,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     Component getComponent(String name, boolean autoCreateComponents);
 
     /**
-     * Gets a component from the context by name.
+     * Gets a component from the CamelContext by name.
      *
      * @param name                 the name of the component
      * @param autoCreateComponents whether or not the component should
@@ -371,7 +382,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     Component getComponent(String name, boolean autoCreateComponents, boolean autoStart);
 
     /**
-     * Gets a component from the context by name and specifying the expected type of component.
+     * Gets a component from the CamelContext by name and specifying the expected type of component.
      *
      * @param name          the name to lookup
      * @param componentType the expected type
@@ -566,14 +577,13 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     Collection<RestConfiguration> getRestConfigurations();
 
     /**
-     * Gets the service call configuration by the given name. If no name is given and there is only one configuration
-     * which matches the type then this configuration is returned.
+     * Gets the service call configuration by the given name. If no name is given
+     * the default configuration is returned, see <tt>setServiceCallConfiguration</tt>
      *
      * @param serviceName name of service, or <tt>null</tt> to return the default configuration
-     * @param type implementation of the configuration such as kubernetes, ribbon etc.
      * @return the configuration, or <tt>null</tt> if no configuration has been registered
      */
-    <T extends ServiceCallConfigurationDefinition> T getServiceCallConfiguration(String serviceName, Class<T> type);
+    ServiceCallConfigurationDefinition getServiceCallConfiguration(String serviceName);
 
     /**
      * Sets the default service call configuration
@@ -583,12 +593,50 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void setServiceCallConfiguration(ServiceCallConfigurationDefinition configuration);
 
     /**
+     * Sets the service call configurations
+     *
+     * @param configurations the configuration list
+     */
+    void setServiceCallConfigurations(List<ServiceCallConfigurationDefinition> configurations);
+
+    /**
      * Adds the service call configuration
      *
      * @param serviceName name of the service
      * @param configuration the configuration
      */
     void addServiceCallConfiguration(String serviceName, ServiceCallConfigurationDefinition configuration);
+
+    /**
+     * Gets the Hystrix configuration by the given name. If no name is given
+     * the default configuration is returned, see <tt>setHystrixConfiguration</tt>
+     *
+     * @param id id of the configuration, or <tt>null</tt> to return the default configuration
+     * @return the configuration, or <tt>null</tt> if no configuration has been registered
+     */
+    HystrixConfigurationDefinition getHystrixConfiguration(String id);
+
+    /**
+     * Sets the default Hystrix configuration
+     *
+     * @param configuration the configuration
+     */
+    void setHystrixConfiguration(HystrixConfigurationDefinition configuration);
+
+    /**
+     * Sets the Hystrix configurations
+     *
+     * @param configurations the configuration list
+     */
+    void setHystrixConfigurations(List<HystrixConfigurationDefinition> configurations);
+
+    /**
+     * Adds the Hystrix configuration
+     *
+     * @param id name of the configuration
+     * @param configuration the configuration
+     */
+    void addHystrixConfiguration(String id, HystrixConfigurationDefinition configuration);
 
     /**
      * Returns the order in which the route inputs was started.
@@ -601,7 +649,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     List<RouteStartupOrder> getRouteStartupOrder();
 
     /**
-     * Returns the current routes in this context
+     * Returns the current routes in this CamelContext
      *
      * @return the current routes
      */
@@ -654,7 +702,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     <T extends ManagedRouteMBean> T getManagedRoute(String routeId, Class<T> type);
 
     /**
-     * Gets the managed Camel context client api
+     * Gets the managed Camel CamelContext client api
      */
     ManagedCamelContextMBean getManagedCamelContext();
 
@@ -677,7 +725,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     <T extends ProcessorDefinition> T getProcessorDefinition(String id, Class<T> type);
 
     /**
-     * Adds a collection of routes to this context using the given builder
+     * Adds a collection of routes to this CamelContext using the given builder
      * to build them.
      * <p/>
      * <b>Important:</b> The added routes will <b>only</b> be started, if {@link CamelContext}
@@ -688,7 +736,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * If you use the API from {@link org.apache.camel.CamelContext} or {@link org.apache.camel.model.ModelCamelContext} to add routes, then any
      * new routes which has a route id that matches an old route, then the old route is replaced by the new route.
      *
-     * @param builder the builder which will create the routes and add them to this context
+     * @param builder the builder which will create the routes and add them to this CamelContext
      * @throws Exception if the routes could not be created for whatever reason
      */
     void addRoutes(RoutesBuilder builder) throws Exception;
@@ -728,7 +776,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void addRouteDefinition(RouteDefinition routeDefinition) throws Exception;
 
     /**
-     * Removes a collection of route definitions from the context - stopping any previously running
+     * Removes a collection of route definitions from the CamelContext - stopping any previously running
      * routes if any of them are actively running
      *
      * @param routeDefinitions route(s) definitions to remove
@@ -737,7 +785,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void removeRouteDefinitions(Collection<RouteDefinition> routeDefinitions) throws Exception;
 
     /**
-     * Removes a route definition from the context - stopping any previously running
+     * Removes a route definition from the CamelContext - stopping any previously running
      * routes if any of them are actively running
      *
      * @param routeDefinition route definition to remove
@@ -1013,7 +1061,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     String resolvePropertyPlaceholders(String text) throws Exception;
     
     /**
-     * Returns the configured property placeholder prefix token if and only if the context has
+     * Returns the configured property placeholder prefix token if and only if the CamelContext has
      * property placeholder abilities, otherwise returns {@code null}.
      * 
      * @return the prefix token or {@code null}
@@ -1021,7 +1069,7 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     String getPropertyPrefixToken();
     
     /**
-     * Returns the configured property placeholder suffix token if and only if the context has
+     * Returns the configured property placeholder suffix token if and only if the CamelContext has
      * property placeholder abilities, otherwise returns {@code null}.
      * 
      * @return the suffix token or {@code null}
@@ -1068,6 +1116,40 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * @throws RuntimeCamelException is thrown if error starting the template
      */
     ProducerTemplate createProducerTemplate(int maximumCacheSize);
+
+    /**
+     * Creates a new {@link FluentProducerTemplate} which is <b>started</b> and therefore ready to use right away.
+     * <p/>
+     * See this FAQ before use: <a href="http://camel.apache.org/why-does-camel-use-too-many-threads-with-producertemplate.html">
+     * Why does Camel use too many threads with ProducerTemplate?</a>
+     * <p/>
+     * <b>Important:</b> Make sure to call {@link org.apache.camel.FluentProducerTemplate#stop()} when you are done using the template,
+     * to clean up any resources.
+     * <p/>
+     * Will use cache size defined in Camel property with key {@link Exchange#MAXIMUM_CACHE_POOL_SIZE}.
+     * If no key was defined then it will fallback to a default size of 1000.
+     * You can also use the {@link org.apache.camel.FluentProducerTemplate#setMaximumCacheSize(int)} method to use a custom value
+     * before starting the template.
+     *
+     * @return the template
+     * @throws RuntimeCamelException is thrown if error starting the template
+     */
+    FluentProducerTemplate createFluentProducerTemplate();
+
+    /**
+     * Creates a new {@link FluentProducerTemplate} which is <b>started</b> and therefore ready to use right away.
+     * <p/>
+     * See this FAQ before use: <a href="http://camel.apache.org/why-does-camel-use-too-many-threads-with-producertemplate.html">
+     * Why does Camel use too many threads with ProducerTemplate?</a>
+     * <p/>
+     * <b>Important:</b> Make sure to call {@link FluentProducerTemplate#stop()} when you are done using the template,
+     * to clean up any resources.
+     *
+     * @param maximumCacheSize the maximum cache size
+     * @return the template
+     * @throws RuntimeCamelException is thrown if error starting the template
+     */
+    FluentProducerTemplate createFluentProducerTemplate(int maximumCacheSize);
 
     /**
      * Creates a new {@link ConsumerTemplate} which is <b>started</b> and therefore ready to use right away.
@@ -1162,6 +1244,14 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     DataFormat resolveDataFormat(String name);
 
     /**
+     * Creates the given data format given its name.
+     *
+     * @param name the data format name or a reference to a data format factory in the {@link Registry}
+     * @return the resolved data format, or <tt>null</tt> if not found
+     */
+    DataFormat createDataFormat(String name);
+
+    /**
      * Resolve a data format definition given its name
      *
      * @param name the data format definition name or a reference to it in the {@link Registry}
@@ -1184,26 +1274,123 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void setDataFormatResolver(DataFormatResolver dataFormatResolver);
 
     /**
-     * Sets the properties that can be referenced in the camel context
+     * Sets the transformers that can be referenced in the routes.
      *
-     * @param properties properties
+     * @param transformers the transformers
      */
+    void setTransformers(List<TransformerDefinition> transformers);
+
+    /**
+     * Gets the transformers that can be referenced in the routes.
+     *
+     * @return the transformers available
+     */
+    List<TransformerDefinition> getTransformers();
+
+    /**
+     * Resolve a transformer given a scheme
+     *
+     * @param model data model name.
+     * @return the resolved transformer, or <tt>null</tt> if not found
+     */
+    Transformer resolveTransformer(String model);
+
+    /**
+     * Resolve a transformer given from/to data type.
+     *
+     * @param from from data type
+     * @param to to data type
+     * @return the resolved transformer, or <tt>null</tt> if not found
+     */
+    Transformer resolveTransformer(DataType from, DataType to);
+
+    /**
+     * Gets the {@link org.apache.camel.spi.TransformerRegistry}
+     * @return the TransformerRegistry
+     */
+    TransformerRegistry getTransformerRegistry();
+
+    /**
+     * Sets the validators that can be referenced in the routes.
+     *
+     * @param validators the validators
+     */
+    void setValidators(List<ValidatorDefinition> validators);
+
+    /**
+     * Gets the validators that can be referenced in the routes.
+     *
+     * @return the validators available
+     */
+    List<ValidatorDefinition> getValidators();
+
+    /**
+     * Resolve a validator given from/to data type.
+     *
+     * @param type the data type
+     * @return the resolved validator, or <tt>null</tt> if not found
+     */
+    Validator resolveValidator(DataType type);
+
+    /**
+     * Gets the {@link org.apache.camel.spi.ValidatorRegistry}
+     * @return the ValidatorRegistry
+     */
+    ValidatorRegistry getValidatorRegistry();
+
+    /**
+     * @deprecated use {@link #setGlobalOptions(Map) setGlobalOptions(Map<String,String>) instead}.
+     */
+    @Deprecated
     void setProperties(Map<String, String> properties);
 
     /**
-     * Gets the properties that can be referenced in the camel context
+     * Sets global options that can be referenced in the camel context
+     * <p/>
+     * <b>Important:</b> This has nothing to do with property placeholders, and is just a plain set of key/value pairs
+     * which are used to configure global options on CamelContext, such as a maximum debug logging length etc.
+     * For property placeholders use {@link #resolvePropertyPlaceholders(String)} method and see more details
+     * at the <a href="http://camel.apache.org/using-propertyplaceholder.html">property placeholder</a> documentation.
      *
-     * @return the properties
+     * @param globalOptions global options that can be referenced in the camel context
      */
+    void setGlobalOptions(Map<String, String> globalOptions);
+
+    /**
+     * @deprecated use {@link #getGlobalOptions()} instead.
+     */
+    @Deprecated
     Map<String, String> getProperties();
 
     /**
-     * Gets the property value that can be referenced in the camel context
+     * Gets global options that can be referenced in the camel context.
+     * <p/>
+     * <b>Important:</b> This has nothing to do with property placeholders, and is just a plain set of key/value pairs
+     * which are used to configure global options on CamelContext, such as a maximum debug logging length etc.
+     * For property placeholders use {@link #resolvePropertyPlaceholders(String)} method and see more details
+     * at the <a href="http://camel.apache.org/using-propertyplaceholder.html">property placeholder</a> documentation.
      *
-     * @return the string value of property
+     * @return global options for this context
      */
-    String getProperty(String name);
-    
+    Map<String, String> getGlobalOptions();
+
+    /**
+     * @deprecated use {@link #getGlobalOption(String)} instead.
+     */
+    String getProperty(String key);
+
+    /**
+     * Gets the global option value that can be referenced in the camel context
+     * <p/>
+     * <b>Important:</b> This has nothing to do with property placeholders, and is just a plain set of key/value pairs
+     * which are used to configure global options on CamelContext, such as a maximum debug logging length etc.
+     * For property placeholders use {@link #resolvePropertyPlaceholders(String)} method and see more details
+     * at the <a href="http://camel.apache.org/using-propertyplaceholder.html">property placeholder</a> documentation.
+     *
+     * @return the string value of the global option
+     */
+    String getGlobalOption(String key);
+
     /**
      * Gets the default FactoryFinder which will be used for the loading the factory class from META-INF
      *
@@ -1400,14 +1587,14 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void setAsyncProcessorAwaitManager(AsyncProcessorAwaitManager manager);
 
     /**
-     * Gets the the application context class loader which may be helpful for running camel in other containers
+     * Gets the the application CamelContext class loader which may be helpful for running camel in other containers
      *
-     * @return the application context class loader
+     * @return the application CamelContext class loader
      */
     ClassLoader getApplicationContextClassLoader();
 
     /**
-     * Sets the application context class loader
+     * Sets the application CamelContext class loader
      *
      * @param classLoader the class loader
      */
@@ -1609,7 +1796,9 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * Returns the HTML documentation for the given Camel component
      *
      * @return the HTML or <tt>null</tt> if the component is <b>not</b> built with HTML document included.
+     * @deprecated use camel-catalog instead
      */
+    @Deprecated
     String getComponentDocumentation(String componentName) throws IOException;
 
     /**
@@ -1760,5 +1949,32 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * @param modelJAXBContextFactory a JAXB Context factory
      */
     void setModelJAXBContextFactory(ModelJAXBContextFactory modelJAXBContextFactory);
+
+    /**
+     * Returns the {@link ReloadStrategy} if in use.
+     *
+     * @return the strategy, or <tt>null</tt> if none has been configured.
+     */
+    ReloadStrategy getReloadStrategy();
+
+    /**
+     * Sets a custom {@link ReloadStrategy} to be used
+     */
+    void setReloadStrategy(ReloadStrategy reloadStrategy);
+
+    /**
+     * Gets the associated {@link RuntimeCamelCatalog} for this CamelContext.
+     */
+    RuntimeCamelCatalog getRuntimeCamelCatalog();
+
+    /**
+     * Gets a list of {@link LogListener}.
+     */
+    Set<LogListener> getLogListeners();
+
+    /**
+     * Adds a {@link LogListener}.
+     */
+    void addLogListener(LogListener listener);
 
 }

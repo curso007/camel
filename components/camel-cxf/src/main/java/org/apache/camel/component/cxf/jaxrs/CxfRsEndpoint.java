@@ -32,7 +32,9 @@ import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.Service;
 import org.apache.camel.component.cxf.NullFaultListener;
+import org.apache.camel.http.common.cookie.CookieHandler;
 import org.apache.camel.impl.DefaultEndpoint;
+import org.apache.camel.impl.SynchronousDelegateProducer;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.spi.UriEndpoint;
@@ -62,7 +64,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The cxfrs component is used for JAX-RS REST services using Apache CXF.
  */
-@UriEndpoint(scheme = "cxfrs", title = "CXF-RS", syntax = "cxfrs:beanId:address", consumerClass = CxfRsConsumer.class, label = "rest", lenientProperties = true)
+@UriEndpoint(firstVersion = "2.0.0", scheme = "cxfrs", title = "CXF-RS", syntax = "cxfrs:beanId:address", consumerClass = CxfRsConsumer.class, label = "rest", lenientProperties = true)
 public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware, Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(CxfRsEndpoint.class);
@@ -85,6 +87,8 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
     private String modelRef;
     @UriParam(label = "consumer", defaultValue = "Default")
     private BindingStyle bindingStyle = BindingStyle.Default;
+    @UriParam(label = "consumer")
+    private String publishedEndpointUrl;
     @UriParam(label = "advanced")
     private HeaderFilterStrategy headerFilterStrategy;
     @UriParam(label = "advanced")
@@ -124,6 +128,8 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
     private boolean propagateContexts;
     @UriParam(label = "advanced")
     private CxfRsEndpointConfigurer cxfRsEndpointConfigurer;
+    @UriParam(label = "producer")
+    private CookieHandler cookieHandler;
 
     public CxfRsEndpoint() {
     }
@@ -190,7 +196,12 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
         if (bindingStyle == BindingStyle.SimpleConsumer) {
             throw new IllegalArgumentException("The SimpleConsumer Binding Style cannot be used in a camel-cxfrs producer");
         }
-        return new CxfRsProducer(this);
+        final CxfRsProducer cxfRsProducer = new CxfRsProducer(this);
+        if (isSynchronous()) {
+            return new SynchronousDelegateProducer(cxfRsProducer);
+        } else {
+            return cxfRsProducer;
+        }
     }
 
     public boolean isSingleton() {
@@ -318,6 +329,10 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
             factory.getFeatures().addAll(getFeatures());
         }
 
+        if (publishedEndpointUrl != null) {
+            factory.setPublishedEndpointUrl(publishedEndpointUrl);
+        }
+
         // we need to avoid flushing the setting from spring or blueprint
         if (!interceptorHolder.getInInterceptors().isEmpty()) {
             factory.setInInterceptors(interceptorHolder.getInInterceptors());
@@ -439,6 +454,17 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
 
     public String getAddress() {
         return resolvePropertyPlaceholders(address);
+    }
+
+    public String getPublishedEndpointUrl() {
+        return publishedEndpointUrl;
+    }
+
+    /**
+     * This option can override the endpointUrl that published from the WADL which can be accessed with resource address url plus ?_wadl
+     */
+    public void setPublishedEndpointUrl(String publishedEndpointUrl) {
+        this.publishedEndpointUrl = publishedEndpointUrl;
     }
 
     /**
@@ -782,5 +808,14 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
         this.cxfRsEndpointConfigurer = configurer;
     }
 
+    public CookieHandler getCookieHandler() {
+        return cookieHandler;
+    }
 
+    /**
+     * Configure a cookie handler to maintain a HTTP session
+     */
+    public void setCookieHandler(CookieHandler cookieHandler) {
+        this.cookieHandler = cookieHandler;
+    }
 }

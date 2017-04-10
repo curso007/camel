@@ -100,6 +100,7 @@ public interface Exchange {
     String CONTENT_ENCODING      = "Content-Encoding";
     String CONTENT_LENGTH        = "Content-Length";
     String CONTENT_TYPE          = "Content-Type";
+    String COOKIE_HANDLER        = "CamelCookieHandler";
     String CORRELATION_ID        = "CamelCorrelationId";
 
     String DATASET_INDEX             = "CamelDataSetIndex";
@@ -165,7 +166,11 @@ public interface Exchange {
 
     String MAXIMUM_CACHE_POOL_SIZE     = "CamelMaximumCachePoolSize";
     String MAXIMUM_ENDPOINT_CACHE_SIZE = "CamelMaximumEndpointCacheSize";
+    String MAXIMUM_TRANSFORMER_CACHE_SIZE = "CamelMaximumTransformerCacheSize";
+    String MAXIMUM_VALIDATOR_CACHE_SIZE = "CamelMaximumValidatorCacheSize";
     String MESSAGE_HISTORY             = "CamelMessageHistory";
+    String MESSAGE_HISTORY_HEADER_FORMAT      = "CamelMessageHistoryHeaderFormat";
+    String MESSAGE_HISTORY_OUTPUT_FORMAT      = "CamelMessageHistoryOutputFormat";
     String MULTICAST_INDEX             = "CamelMulticastIndex";
     String MULTICAST_COMPLETE          = "CamelMulticastComplete";
 
@@ -184,6 +189,8 @@ public interface Exchange {
     String REDELIVERY_MAX_COUNTER  = "CamelRedeliveryMaxCounter";
     String REDELIVERY_EXHAUSTED    = "CamelRedeliveryExhausted";
     String REDELIVERY_DELAY        = "CamelRedeliveryDelay";
+    String REST_HTTP_URI           = "CamelRestHttpUri";
+    String REST_HTTP_QUERY         = "CamelRestHttpQuery";
     String ROLLBACK_ONLY           = "CamelRollbackOnly";
     String ROLLBACK_ONLY_LAST      = "CamelRollbackOnlyLast";
     String ROUTE_STOP              = "CamelRouteStop";

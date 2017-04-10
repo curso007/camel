@@ -20,11 +20,16 @@ import java.util.Map;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.impl.UriEndpointComponent;
+import org.apache.camel.spi.Metadata;
+import org.apache.camel.util.ObjectHelper;
 
 /**
  * The Camel component for Telegram.
  */
 public class TelegramComponent extends UriEndpointComponent {
+
+    @Metadata(label = "security")
+    private String authorizationToken;
 
     public TelegramComponent() {
         super(TelegramEndpoint.class);
@@ -34,13 +39,26 @@ public class TelegramComponent extends UriEndpointComponent {
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         TelegramConfiguration configuration = new TelegramConfiguration();
         setProperties(configuration, parameters);
-        configuration.updatePathConfig(remaining);
+        if (ObjectHelper.isNotEmpty(remaining)) {
+            configuration.updatePathConfig(remaining, this.getAuthorizationToken());
+        }
 
         if (TelegramConfiguration.ENDPOINT_TYPE_BOTS.equals(configuration.getType())) {
             return new TelegramEndpoint(uri, this, configuration);
         }
 
         throw new IllegalArgumentException("Unsupported endpoint type for uri " + uri + ", remaining " + remaining);
+    }
+
+    public String getAuthorizationToken() {
+        return authorizationToken;
+    }
+
+    /**
+     * The default Telegram authorization token to be used when the information is not provided in the endpoints.
+     */
+    public void setAuthorizationToken(String authorizationToken) {
+        this.authorizationToken = authorizationToken;
     }
 
 }

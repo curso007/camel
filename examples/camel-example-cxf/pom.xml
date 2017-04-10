@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>examples</artifactId>
-    <version>2.18-SNAPSHOT</version>
+    <version>2.19.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-example-cxf</artifactId>
@@ -31,18 +31,10 @@
   <description>An example which demonstrates the use of the Camel CXF component</description>
 
   <properties>
-    <camel.osgi.export.pkg>
-      org.apache.camel.example.*
-    </camel.osgi.export.pkg>
-    <camel.osgi.import.additional>
-      org.apache.activemq.xbean,org.apache.activemq.broker,org.apache.activemq.pool
-    </camel.osgi.import.additional>
-    <camel.osgi.private.pkg>
-      org.apache.hello_world_soap_http,
-      org.apache.hello_world_soap_http.types
-    </camel.osgi.private.pkg>
-    <!-- to avoid importing a bunch of cxf packages -->
-    <camel.osgi.dynamic>*</camel.osgi.dynamic>
+    <category>WebService</category>
+    <title>CXF</title>
+
+    <jetty9-version>${jetty92-version}</jetty9-version>
   </properties>
 
   <dependencies>
@@ -67,14 +59,39 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.camel</groupId>
-      <artifactId>camel-jetty9</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.cxf</groupId>
       <artifactId>cxf-rt-transports-http-jetty</artifactId>
       <version>${cxf-version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-util</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-io</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-security</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-continuation</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-http</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel</groupId>
+      <artifactId>camel-jetty9</artifactId>
     </dependency>
 
     <dependency>
@@ -129,15 +146,22 @@
       <groupId>xerces</groupId>
       <artifactId>xercesImpl</artifactId>
     </dependency>
-
+    
     <!-- logging -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- testing -->
@@ -233,6 +257,8 @@
             <id>generate-sources</id>
             <phase>generate-sources</phase>
             <configuration>
+              <fork>${cxf.codegenplugin.forkmode}</fork>
+              <additionalJvmArgs>${cxf.codegen.jvmArgs}</additionalJvmArgs>
               <sourceRoot>${basedir}/target/generated/src/main/java</sourceRoot>
               <wsdlOptions>
                 <wsdlOption>

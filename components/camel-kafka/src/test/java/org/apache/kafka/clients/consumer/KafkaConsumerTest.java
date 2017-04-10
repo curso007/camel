@@ -21,7 +21,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.hamcrest.core.IsNull.nullValue;
@@ -38,6 +37,7 @@ public class KafkaConsumerTest {
     public void init() {
         when(kafkaConsumer.poll(1000)).thenReturn(ConsumerRecords.empty());
     }
+
     @Test
     public void testPollGivenReturnsEmptyConsumerRecordShouldNotBeNull() {
         ConsumerRecords<Object, Object> consumerRecords = kafkaConsumer.poll(1000);

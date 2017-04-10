@@ -21,15 +21,19 @@
   <parent>
     <artifactId>components</artifactId>
     <groupId>org.apache.camel</groupId>
-    <version>2.18-SNAPSHOT</version>
+    <version>2.19.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-spring-security</artifactId>
   <packaging>jar</packaging>
   <name>Camel :: Spring Security</name>
-  <description>Camel Spring Security support</description>
+  <description>Security using Spring Security</description>
 
   <properties>
+    <!-- use by camel-catalog -->
+    <firstVersion>2.3.0</firstVersion>
+    <label>security,spring</label>
+
     <camel.osgi.export.pkg>org.apache.camel.component.spring.security.*</camel.osgi.export.pkg>
     <camel.osgi.import.before.defaults>org.springframework.security.*;version="[4,5)"</camel.osgi.import.before.defaults>
   </properties>
@@ -93,10 +97,20 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
+    </dependency>  
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
       <scope>test</scope>
     </dependency>
 

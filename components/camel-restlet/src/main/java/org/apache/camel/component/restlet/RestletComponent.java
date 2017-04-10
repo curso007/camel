@@ -33,13 +33,17 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Processor;
+import org.apache.camel.Producer;
 import org.apache.camel.impl.HeaderFilterStrategyComponent;
+import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.RestApiConsumerFactory;
 import org.apache.camel.spi.RestConfiguration;
 import org.apache.camel.spi.RestConsumerFactory;
+import org.apache.camel.spi.RestProducerFactory;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.HostUtils;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.ServiceHelper;
 import org.apache.camel.util.URISupport;
 import org.apache.camel.util.UnsafeUriCharactersEncoder;
 import org.apache.camel.util.jsse.SSLContextParameters;
@@ -62,7 +66,7 @@ import org.slf4j.LoggerFactory;
  *
  * @version
  */
-public class RestletComponent extends HeaderFilterStrategyComponent implements RestConsumerFactory, RestApiConsumerFactory {
+public class RestletComponent extends HeaderFilterStrategyComponent implements RestConsumerFactory, RestApiConsumerFactory, RestProducerFactory {
     private static final Logger LOG = LoggerFactory.getLogger(RestletComponent.class);
     private static final Object LOCK = new Object();
 
@@ -71,24 +75,43 @@ public class RestletComponent extends HeaderFilterStrategyComponent implements R
     private final Component component;
 
     // options that can be set on the restlet server
+    @Metadata(label = "consumer,advanced")
     private Boolean controllerDaemon;
+    @Metadata(label = "consumer,advanced")
     private Integer controllerSleepTimeMs;
+    @Metadata(label = "consumer")
     private Integer inboundBufferSize;
+    @Metadata(label = "consumer,advanced")
     private Integer minThreads;
+    @Metadata(label = "consumer,advanced")
     private Integer maxThreads;
+    @Metadata(label = "consumer,advanced")
     private Integer lowThreads;
+    @Metadata(label = "common")
     private Integer maxConnectionsPerHost;
+    @Metadata(label = "common")
     private Integer maxTotalConnections;
+    @Metadata(label = "consumer")
     private Integer outboundBufferSize;
+    @Metadata(label = "consumer,advanced")
     private Integer maxQueued;
+    @Metadata(label = "consumer,advanced")
     private Boolean persistingConnections;
+    @Metadata(label = "consumer,advanced")
     private Boolean pipeliningConnections;
+    @Metadata(label = "consumer,advanced")
     private Integer threadMaxIdleTimeMs;
+    @Metadata(label = "consumer")
     private Boolean useForwardedForHeader;
+    @Metadata(label = "consumer")
     private Boolean reuseAddress;
+    @Metadata(label = "consumer,advanced")
     private boolean disableStreamCache;
+    @Metadata(label = "consumer")
     private int port;
+    @Metadata(label = "producer")
     private Boolean synchronous;
+    @Metadata(label = "advanced")
     private List<String> enabledConverters;
 
     public RestletComponent() {
@@ -256,8 +279,14 @@ public class RestletComponent extends HeaderFilterStrategyComponent implements R
     }
 
     protected Server createServer(RestletEndpoint endpoint) {
-        return new Server(component.getContext().createChildContext(), Protocol.valueOf(endpoint.getProtocol()), endpoint.getPort());
+        // Consider hostname if provided. This is useful when loopback interface is required for security reasons.
+        if (endpoint.getHost() != null) {
+            return new Server(component.getContext().createChildContext(), Protocol.valueOf(endpoint.getProtocol()), endpoint.getHost(), endpoint.getPort(), null);
+        } else {
+            return new Server(component.getContext().createChildContext(), Protocol.valueOf(endpoint.getProtocol()), endpoint.getPort());
+        }
     }
+
 
     protected String stringArrayToString(String[] strings) {
         StringBuffer result = new StringBuffer();
@@ -673,7 +702,6 @@ public class RestletComponent extends HeaderFilterStrategyComponent implements R
         return enabledConverters;
     }
 
-
     /**
      * A list of converters to enable as full class name or simple class name.
      * All the converters automatically registered are enabled if empty or null
@@ -788,6 +816,9 @@ public class RestletComponent extends HeaderFilterStrategyComponent implements R
         RestletEndpoint endpoint = camelContext.getEndpoint(url, RestletEndpoint.class);
         setProperties(camelContext, endpoint, parameters);
 
+        // the endpoint must be started before creating the consumer
+        ServiceHelper.startService(endpoint);
+
         // configure consumer properties
         Consumer consumer = endpoint.createConsumer(processor);
         if (config.getConsumerProperties() != null && !config.getConsumerProperties().isEmpty()) {
@@ -802,6 +833,39 @@ public class RestletComponent extends HeaderFilterStrategyComponent implements R
                                       RestConfiguration configuration, Map<String, Object> parameters) throws Exception {
         // reuse the createConsumer method we already have. The api need to use GET and match on uri prefix
         return createConsumer(camelContext, processor, "GET", contextPath, null, null, null, configuration, parameters);
+    }
+
+    @Override
+    public Producer createProducer(CamelContext camelContext, String host,
+                                   String verb, String basePath, String uriTemplate, String queryParameters,
+                                   String consumes, String produces, Map<String, Object> parameters) throws Exception {
+
+        // avoid leading slash
+        basePath = FileUtil.stripLeadingSeparator(basePath);
+        uriTemplate = FileUtil.stripLeadingSeparator(uriTemplate);
+
+        // restlet method must be in upper-case
+        String restletMethod = verb.toUpperCase(Locale.US);
+
+        // get the endpoint
+        String url = "restlet:" + host;
+        if (!ObjectHelper.isEmpty(basePath)) {
+            url += "/" + basePath;
+        }
+        if (!ObjectHelper.isEmpty(uriTemplate)) {
+            url += "/" + uriTemplate;
+        }
+        url += "?restletMethod=" + restletMethod;
+
+        RestletEndpoint endpoint = camelContext.getEndpoint(url, RestletEndpoint.class);
+        if (parameters != null && !parameters.isEmpty()) {
+            setProperties(camelContext, endpoint, parameters);
+        }
+
+        // the endpoint must be started before creating the producer
+        ServiceHelper.startService(endpoint);
+
+        return endpoint.createProducer();
     }
 
     protected static void cleanupConverters(List<String> converters) {

@@ -55,6 +55,7 @@ import org.restlet.data.CacheDirective;
 import org.restlet.data.ChallengeResponse;
 import org.restlet.data.ChallengeScheme;
 import org.restlet.data.CharacterSet;
+import org.restlet.data.ClientInfo;
 import org.restlet.data.Form;
 import org.restlet.data.Header;
 import org.restlet.data.MediaType;
@@ -195,11 +196,23 @@ public class DefaultRestletBinding implements RestletBinding, HeaderFilterStrate
             }
         }
 
-        //Get outgoing custom http headers
-        Series<Header> restletHeaders = (Series)request.getAttributes().get(HeaderConstants.ATTRIBUTE_HEADERS);
+        // get outgoing custom http headers from the exchange if they exists
+        Series<Header> restletHeaders = exchange.getIn().getHeader(HeaderConstants.ATTRIBUTE_HEADERS, Series.class);
         if (restletHeaders == null) {
-            restletHeaders = new Series<>(Header.class);
+            restletHeaders = new Series<Header>(Header.class);
             request.getAttributes().put(HeaderConstants.ATTRIBUTE_HEADERS, restletHeaders);
+        } else {
+            // if the restlet headers already exists on the exchange, we need to filter them
+            for (String name : restletHeaders.getNames()) {
+                if (headerFilterStrategy.applyFilterToCamelHeaders(name, restletHeaders.getValues(name), exchange)) {
+                    restletHeaders.removeAll(name);
+                }
+            }
+            request.getAttributes().put(HeaderConstants.ATTRIBUTE_HEADERS, restletHeaders);
+
+            // since the restlet headers already exists remove them from the exchange so they don't get added again below
+            // we will get a new set of restlet headers on the response
+            exchange.getIn().removeHeader(HeaderConstants.ATTRIBUTE_HEADERS);
         }
 
         // login and password are filtered by header filter strategy
@@ -266,15 +279,19 @@ public class DefaultRestletBinding implements RestletBinding, HeaderFilterStrate
 
         // accept
         String accept = exchange.getIn().getHeader("Accept", String.class);
+        final ClientInfo clientInfo = request.getClientInfo();
+        final List<Preference<MediaType>> acceptedMediaTypesList = clientInfo.getAcceptedMediaTypes();
         if (accept != null) {
-            MediaType acceptedMediaType = exchange.getContext().getTypeConverter().tryConvertTo(MediaType.class, exchange, accept);
-            if (acceptedMediaType != null) {
-                request.getClientInfo().getAcceptedMediaTypes().add(new Preference<MediaType>(acceptedMediaType));
+            final MediaType[] acceptedMediaTypes = exchange.getContext().getTypeConverter().tryConvertTo(MediaType[].class, exchange, accept);
+            for (final MediaType acceptedMediaType : acceptedMediaTypes) {
+                acceptedMediaTypesList.add(new Preference<MediaType>(acceptedMediaType));
             }
         }
-        MediaType acceptedMediaType = exchange.getIn().getHeader(Exchange.ACCEPT_CONTENT_TYPE, MediaType.class);
-        if (acceptedMediaType != null) {
-            request.getClientInfo().getAcceptedMediaTypes().add(new Preference<MediaType>(acceptedMediaType));
+        final MediaType[] acceptedMediaTypes = exchange.getIn().getHeader(Exchange.ACCEPT_CONTENT_TYPE, MediaType[].class);
+        if (acceptedMediaTypes != null) {
+            for (final MediaType acceptedMediaType : acceptedMediaTypes) {
+                acceptedMediaTypesList.add(new Preference<MediaType>(acceptedMediaType));
+            }
         }
 
     }

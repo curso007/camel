@@ -27,6 +27,7 @@ import org.apache.camel.ExchangePattern;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
+import org.apache.camel.http.common.cookie.CookieHandler;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
@@ -41,7 +42,7 @@ import org.restlet.data.Method;
 /**
  * Component for consuming and producing Restful resources using Restlet.
  */
-@UriEndpoint(scheme = "restlet", title = "Restlet", syntax = "restlet:protocol:host:port/uriPattern",
+@UriEndpoint(firstVersion = "2.0.0", scheme = "restlet", title = "Restlet", syntax = "restlet:protocol:host:port/uriPattern",
         consumerClass = RestletConsumer.class, label = "rest", lenientProperties = true)
 public class RestletEndpoint extends DefaultEndpoint implements AsyncEndpoint, HeaderFilterStrategyAware {
     private static final int DEFAULT_PORT = 80;
@@ -76,7 +77,7 @@ public class RestletEndpoint extends DefaultEndpoint implements AsyncEndpoint, H
     private RestletBinding restletBinding;
     @UriParam(label = "producer", defaultValue = "true")
     private boolean throwExceptionOnFailure = true;
-    @UriParam(label = "advanced")
+    @UriParam(label = "consumer,advanced")
     private boolean disableStreamCache;
     @UriParam(label = "security")
     private SSLContextParameters sslContextParameters;
@@ -84,6 +85,8 @@ public class RestletEndpoint extends DefaultEndpoint implements AsyncEndpoint, H
     private boolean streamRepresentation;
     @UriParam(label = "producer,advanced")
     private boolean autoCloseStream;
+    @UriParam(label = "producer")
+    private CookieHandler cookieHandler;
 
     public RestletEndpoint(RestletComponent component, String remaining) throws Exception {
         super(remaining, component);
@@ -341,6 +344,17 @@ public class RestletEndpoint extends DefaultEndpoint implements AsyncEndpoint, H
      */
     public void setAutoCloseStream(boolean autoCloseStream) {
         this.autoCloseStream = autoCloseStream;
+    }
+
+    public CookieHandler getCookieHandler() {
+        return cookieHandler;
+    }
+
+    /**
+     * Configure a cookie handler to maintain a HTTP session
+     */
+    public void setCookieHandler(CookieHandler cookieHandler) {
+        this.cookieHandler = cookieHandler;
     }
 
     // Update the endpointUri with the restlet method information

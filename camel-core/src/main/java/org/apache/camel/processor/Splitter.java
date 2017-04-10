@@ -69,12 +69,18 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
                 streaming, stopOnException, timeout, onPrepare, useSubUnitOfWork, false);
     }
 
-    public Splitter(CamelContext camelContext, Expression expression, Processor destination, AggregationStrategy aggregationStrategy,
-                    boolean parallelProcessing, ExecutorService executorService, boolean shutdownExecutorService,
-                    boolean streaming, boolean stopOnException, long timeout, Processor onPrepare, boolean useSubUnitOfWork,
-                    boolean parallelAggregate) {
-        super(camelContext, Collections.singleton(destination), aggregationStrategy, parallelProcessing, executorService,
-                shutdownExecutorService, streaming, stopOnException, timeout, onPrepare, useSubUnitOfWork, parallelAggregate);
+    public Splitter(CamelContext camelContext, Expression expression, Processor destination, AggregationStrategy aggregationStrategy, boolean parallelProcessing,
+                    ExecutorService executorService, boolean shutdownExecutorService, boolean streaming, boolean stopOnException, long timeout, Processor onPrepare,
+                    boolean useSubUnitOfWork, boolean parallelAggregate) {
+        this(camelContext, expression, destination, aggregationStrategy, parallelProcessing, executorService, shutdownExecutorService, streaming, stopOnException, timeout,
+             onPrepare, useSubUnitOfWork, false, false);
+    }
+
+    public Splitter(CamelContext camelContext, Expression expression, Processor destination, AggregationStrategy aggregationStrategy, boolean parallelProcessing,
+                    ExecutorService executorService, boolean shutdownExecutorService, boolean streaming, boolean stopOnException, long timeout, Processor onPrepare,
+                    boolean useSubUnitOfWork, boolean parallelAggregate, boolean stopOnAggregateException) {
+        super(camelContext, Collections.singleton(destination), aggregationStrategy, parallelProcessing, executorService, shutdownExecutorService, streaming, stopOnException,
+              timeout, onPrepare, useSubUnitOfWork, parallelAggregate, stopOnAggregateException);
         this.expression = expression;
         notNull(expression, "expression");
         notNull(destination, "destination");
@@ -284,7 +290,7 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
     private static Exchange copyExchangeNoAttachments(Exchange exchange, boolean preserveExchangeId) {
         Exchange answer = ExchangeHelper.createCopy(exchange, preserveExchangeId);
         // we do not want attachments for the splitted sub-messages
-        answer.getIn().setAttachments(null);
+        answer.getIn().setAttachmentObjects(null);
         // we do not want to copy the message history for splitted sub-messages
         answer.getProperties().remove(Exchange.MESSAGE_HISTORY);
         return answer;

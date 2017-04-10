@@ -24,7 +24,7 @@
     <!-- Binary Files -->
     <fileSet>
       <directory>..</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <includes>
         <include>**/*</include>
       </includes>
@@ -50,6 +50,8 @@
         <exclude>**/*.iws</exclude>
 
         <exclude>**/cobertura.ser</exclude>
+
+        <exclude>**/node_modules/**</exclude>
       </excludes>
     </fileSet>
 

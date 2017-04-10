@@ -35,6 +35,7 @@ public class CamelGoraTest extends AbstractSpringBootTestSupport {
     public static ITestConfig createTestConfig() {
         return new ITestConfigBuilder()
                 .module(inferModuleName(CamelGoraTest.class))
+                .ignoreLibraryMismatch("com.sun.jersey")
                 .build();
     }
 

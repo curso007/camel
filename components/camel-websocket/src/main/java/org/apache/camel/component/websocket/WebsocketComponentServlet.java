@@ -19,9 +19,6 @@ package org.apache.camel.component.websocket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import javax.servlet.http.HttpServletRequest;
-
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
@@ -36,13 +33,15 @@ public class WebsocketComponentServlet extends WebSocketServlet {
 
     private final NodeSynchronization sync;
     private WebsocketConsumer consumer;
+    private String pathSpec;
 
     private ConcurrentMap<String, WebsocketConsumer> consumers = new ConcurrentHashMap<String, WebsocketConsumer>();
     private Map<String, WebSocketFactory> socketFactory;
 
-    public WebsocketComponentServlet(NodeSynchronization sync, Map<String, WebSocketFactory> socketFactory) {
+    public WebsocketComponentServlet(NodeSynchronization sync, String pathSpec, Map<String, WebSocketFactory> socketFactory) {
         this.sync = sync;
         this.socketFactory = socketFactory;
+        this.pathSpec = pathSpec;
     }
 
     public WebsocketConsumer getConsumer() {
@@ -72,7 +71,9 @@ public class WebsocketComponentServlet extends WebSocketServlet {
         }
 
         WebSocketFactory factory = socketFactory.get(protocolKey);
-        return factory.newInstance(request, protocolKey, sync, consumer);
+        return factory.newInstance(request, protocolKey, 
+                (consumer != null && consumer.getEndpoint() != null) ? WebsocketComponent.createPathSpec(consumer.getEndpoint().getResourceUri()) : null,
+                sync, consumer);
     }
 
     public Map<String, WebSocketFactory> getSocketFactory() {
@@ -90,7 +91,7 @@ public class WebsocketComponentServlet extends WebSocketServlet {
             public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
                 String protocolKey = "default";
                 WebSocketFactory factory = socketFactory.get(protocolKey);
-                return factory.newInstance(req, protocolKey, sync, consumer);
+                return factory.newInstance(req, protocolKey, pathSpec, sync, consumer);
             }
         });
     }

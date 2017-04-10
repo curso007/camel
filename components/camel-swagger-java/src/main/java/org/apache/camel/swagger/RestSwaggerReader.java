@@ -23,9 +23,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import io.swagger.jaxrs.config.BeanConfig;
+import io.swagger.models.ArrayModel;
 import io.swagger.models.Model;
 import io.swagger.models.ModelImpl;
 import io.swagger.models.Operation;
@@ -196,9 +198,13 @@ public class RestSwaggerReader {
                 op.addTag(pathAsTag);
             }
 
+            final String routeId = verb.getRouteId();
+            final String operationId = Optional.ofNullable(rest.getId()).orElse(routeId);
+            op.operationId(operationId);
+
             // add id as vendor extensions
             op.getVendorExtensions().put("x-camelContextId", camelContextId);
-            op.getVendorExtensions().put("x-routeId", verb.getRouteId());
+            op.getVendorExtensions().put("x-routeId", routeId);
 
             Path path = swagger.getPath(opPath);
             if (path == null) {
@@ -296,9 +302,20 @@ public class RestSwaggerReader {
                         BodyParameter bp = (BodyParameter) parameter;
 
                         if (verb.getType() != null) {
-                            String ref = modelTypeAsRef(verb.getType(), swagger);
-                            if (ref != null) {
-                                bp.setSchema(new RefModel(ref));
+                            if (verb.getType().endsWith("[]")) {
+                                String typeName = verb.getType();
+                                typeName = typeName.substring(0, typeName.length() - 2);
+                                Property prop = modelTypeAsProperty(typeName, swagger);
+                                if (prop != null) {
+                                    ArrayModel arrayModel = new ArrayModel();
+                                    arrayModel.setItems(prop);
+                                    bp.setSchema(arrayModel);
+                                }
+                            } else {
+                                String ref = modelTypeAsRef(verb.getType(), swagger);
+                                if (ref != null) {
+                                    bp.setSchema(new RefModel(ref));
+                                }
                             }
                         }
                     }
@@ -510,8 +527,8 @@ public class RestSwaggerReader {
             boolean oldExt = false;
             if (swagger.getDefinitions() != null && swagger.getDefinitions().get(entry.getKey()) != null) {
                 Model oldModel = swagger.getDefinitions().get(entry.getKey());
-                if (oldModel.getVendorExtensions() != null) {
-                    oldExt = oldModel.getVendorExtensions().get("x-className") == null;
+                if (oldModel.getVendorExtensions() != null && !oldModel.getVendorExtensions().isEmpty()) {
+                    oldExt = oldModel.getVendorExtensions().get("x-className") != null;
                 }
             }
 

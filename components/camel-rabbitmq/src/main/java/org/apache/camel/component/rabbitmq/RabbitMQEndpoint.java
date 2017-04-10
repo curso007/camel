@@ -18,6 +18,7 @@ package org.apache.camel.component.rabbitmq;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -45,7 +46,11 @@ import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriPath;
 
-@UriEndpoint(scheme = "rabbitmq", title = "RabbitMQ", syntax = "rabbitmq:hostname:portNumber/exchangeName", consumerClass = RabbitMQConsumer.class, label = "messaging")
+/**
+ * The rabbitmq component allows you produce and consume messages from <a href="http://www.rabbitmq.com/">RabbitMQ</a> instances.
+ */
+@UriEndpoint(firstVersion = "2.12.0", scheme = "rabbitmq", title = "RabbitMQ", syntax = "rabbitmq:hostname:portNumber/exchangeName",
+        consumerClass = RabbitMQConsumer.class, label = "messaging")
 public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     // header to indicate that the message body needs to be de-serialized
     public static final String SERIALIZE_HEADER = "CamelSerialize";
@@ -70,6 +75,8 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     private boolean autoDelete = true;
     @UriParam(label = "common", defaultValue = "true")
     private boolean durable = true;
+    @UriParam(label = "common", defaultValue = "false")
+    private boolean exclusive;
     @UriParam(label = "producer")
     private boolean bridgeEndpoint;
     @UriParam(label = "common")
@@ -80,6 +87,8 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     private String routingKey;
     @UriParam(label = "common")
     private boolean skipQueueDeclare;
+    @UriParam(label = "common")
+    private boolean skipQueueBind;
     @UriParam(label = "common")
     private boolean skipExchangeDeclare;
     @UriParam(label = "advanced")
@@ -134,9 +143,22 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     private boolean mandatory;
     @UriParam(label = "producer")
     private boolean immediate;
+    @UriParam(label = "advanced", prefix = "arg.", multiValue = true)
+    private Map<String, Object> args;
     @UriParam(label = "advanced")
+    @Deprecated
+    private Map<String, Object> exchangeArgs = new HashMap<>();
+    @UriParam(label = "advanced")
+    @Deprecated
+    private Map<String, Object> queueArgs = new HashMap<>();
+    @UriParam(label = "advanced")
+    @Deprecated
+    private Map<String, Object> bindingArgs = new HashMap<>();
+    @UriParam(label = "advanced")
+    @Deprecated
     private ArgsConfigurer queueArgsConfigurer;
     @UriParam(label = "advanced")
+    @Deprecated
     private ArgsConfigurer exchangeArgsConfigurer;
     @UriParam(label = "advanced")
     private long requestTimeout = 20000;
@@ -148,6 +170,8 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     private boolean publisherAcknowledgements;
     @UriParam(label = "producer")
     private long publisherAcknowledgementsTimeout;
+    @UriParam(label = "producer")
+    private boolean guaranteedDeliveries;
     // camel-jms supports this setting but it is not currently configurable in camel-rabbitmq
     private boolean useMessageIDAsCorrelationID = true;
     // camel-jms supports this setting but it is not currently configurable in camel-rabbitmq
@@ -406,7 +430,19 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     public boolean isSkipQueueDeclare() {
         return skipQueueDeclare;
     }
-    
+
+    /**
+     * If true the queue will not be bound to the exchange after declaring it
+     * @return
+     */
+    public boolean isSkipQueueBind() {
+        return skipQueueBind;
+    }
+
+    public void setSkipQueueBind(boolean skipQueueBind) {
+        this.skipQueueBind = skipQueueBind;
+    }
+
     /**
      * This can be used if we need to declare the queue but not the exchange
      */
@@ -733,12 +769,75 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
         this.immediate = immediate;
     }
 
+    /**
+     * Specify arguments for configuring the different RabbitMQ concepts, a different prefix is
+     * required for each:
+     * <ul>
+     *     <li>Exchange: arg.exchange.</li>
+     *     <li>Queue: arg.queue.</li>
+     *     <li>Binding: arg.binding.</li>
+     * </ul>
+     * For example to declare a queue with message ttl argument:
+     *
+     * http://localhost:5672/exchange/queue?args=arg.queue.x-message-ttl=60000
+     *
+     */
+    public void setArgs(Map<String, Object> args) {
+        this.args = args;
+    }
+
+    public Map<String, Object> getArgs() {
+        return args;
+    }
+
+    /**
+     * Key/value args for configuring the exchange parameters when declare=true
+     *
+     * @Deprecated Use args instead e.g arg.exchange.x-message-ttl=1000
+     */
+    @Deprecated
+    public void setExchangeArgs(Map<String, Object> exchangeArgs) {
+        this.exchangeArgs = exchangeArgs;
+    }
+
+    public Map<String, Object> getExchangeArgs() {
+        return exchangeArgs;
+    }
+
+    /**
+     * Key/value args for configuring the queue parameters when declare=true
+     *
+     * @Deprecated Use args instead e.g arg.queue.x-message-ttl=1000
+     */
+    public void setQueueArgs(Map<String, Object> queueArgs) {
+        this.queueArgs = queueArgs;
+    }
+
+    public Map<String, Object> getQueueArgs() {
+        return queueArgs;
+    }
+
+    /**
+     * Key/value args for configuring the queue binding parameters when declare=true
+     *
+     * @Deprecated Use args instead e.g arg.binding.foo=bar
+     */
+    public void setBindingArgs(Map<String, Object> bindingArgs) {
+        this.bindingArgs = bindingArgs;
+    }
+
+    public Map<String, Object> getBindingArgs() {
+        return bindingArgs;
+    }
+
     public ArgsConfigurer getQueueArgsConfigurer() {
         return queueArgsConfigurer;
     }
 
     /**
      * Set the configurer for setting the queue args in Channel.queueDeclare
+     *
+     * @Deprecated Use args instead e.g arg.queue.x-message-ttl=1000
      */
     public void setQueueArgsConfigurer(ArgsConfigurer queueArgsConfigurer) {
         this.queueArgsConfigurer = queueArgsConfigurer;
@@ -750,6 +849,8 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
 
     /**
      * Set the configurer for setting the exchange args in Channel.exchangeDeclare
+     *
+     * @Deprecated Use args instead e.g arg.exchange.x-message-ttl=1000
      */
     public void setExchangeArgsConfigurer(ArgsConfigurer exchangeArgsConfigurer) {
         this.exchangeArgsConfigurer = exchangeArgsConfigurer;
@@ -785,7 +886,7 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     }
 
     /**
-     * When true and an inOut Exchange failed on the consumer side send the caused Exception back in the response 
+     * When true and an inOut Exchange failed on the consumer side send the caused Exception back in the response
      */
     public void setTransferException(boolean transferException) {
         this.transferException = transferException;
@@ -818,6 +919,22 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     }
 
     /**
+     * When true, an exception will be thrown when the message cannot be delivered (basic.return) and the message is
+     * marked as mandatory.
+     * PublisherAcknowledgement will also be activated in this case
+     *
+     * See also <a href=https://www.rabbitmq.com/confirms.html">publisher acknowledgements</a> - When will messages be
+     * confirmed?
+     */
+    public boolean isGuaranteedDeliveries() {
+        return guaranteedDeliveries;
+    }
+
+    public void setGuaranteedDeliveries(boolean guaranteedDeliveries) {
+        this.guaranteedDeliveries = guaranteedDeliveries;
+    }
+
+    /**
      * Get replyToType for inOut exchange
      */
     public String getReplyToType() {
@@ -831,4 +948,15 @@ public class RabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
         return replyTo;
     }
 
+    public boolean isExclusive() {
+        return exclusive;
+    }
+
+    /**
+     * Exclusive queues may only be accessed by the current connection, and are deleted when that connection closes.
+     */
+    public void setExclusive(boolean exclusive) {
+        this.exclusive = exclusive;
+    }
+   
 }

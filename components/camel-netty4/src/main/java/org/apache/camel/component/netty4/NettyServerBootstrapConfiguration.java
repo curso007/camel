@@ -48,7 +48,7 @@ public class NettyServerBootstrapConfiguration implements Cloneable {
     protected int receiveBufferSizePredictor;
     @UriParam(label = "consumer,advanced", defaultValue = "1")
     protected int bossCount = 1;
-    @UriParam(label = "consumer,advanced")
+    @UriParam(label = "advanced")
     protected int workerCount;
     @UriParam(defaultValue = "true")
     protected boolean keepAlive = true;
@@ -91,15 +91,15 @@ public class NettyServerBootstrapConfiguration implements Cloneable {
     protected String securityProvider;
     @UriParam(defaultValue = DEFAULT_ENABLED_PROTOCOLS, label = "security")
     protected String enabledProtocols = DEFAULT_ENABLED_PROTOCOLS;
-    @UriParam(label = "security")
+    @UriParam(label = "security", secret = true)
     protected String passphrase;
     @UriParam(label = "advanced")
     protected boolean nativeTransport;
     @UriParam(label = "consumer,advanced")
     protected EventLoopGroup bossGroup;
-    @UriParam(label = "consumer,advanced")
+    @UriParam(label = "advanced")
     protected EventLoopGroup workerGroup;
-    @UriParam(label = "consumer,advanced")
+    @UriParam(label = "advanced")
     protected ChannelGroup channelGroup;
     @UriParam(label = "consumer,advanced")
     protected String networkInterface;
@@ -496,7 +496,7 @@ public class NettyServerBootstrapConfiguration implements Cloneable {
 
     /**
      * To use a explicit EventLoopGroup as the boss thread pool.
-     * For example to share a thread pool with multiple consumers. By default each consumer has their own boss pool with 1 core thread.
+     * For example to share a thread pool with multiple consumers or producers. By default each consumer or producer has their own worker pool with 2 x cpu count core threads.
      */
     public void setWorkerGroup(EventLoopGroup workerGroup) {
         this.workerGroup = workerGroup;

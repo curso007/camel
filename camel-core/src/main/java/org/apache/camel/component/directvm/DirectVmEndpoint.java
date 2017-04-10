@@ -33,7 +33,7 @@ import org.apache.camel.spi.UriPath;
  *
  * This endpoint can be used to connect existing routes in the same JVM between different CamelContexts.
  */
-@UriEndpoint(scheme = "direct-vm", title = "Direct VM", syntax = "direct-vm:name", consumerClass = DirectConsumer.class, label = "core,endpoint")
+@UriEndpoint(firstVersion = "2.10.0", scheme = "direct-vm", title = "Direct VM", syntax = "direct-vm:name", consumerClass = DirectConsumer.class, label = "core,endpoint")
 public class DirectVmEndpoint extends DefaultEndpoint implements AsyncEndpoint {
 
     @UriPath(description = "Name of direct-vm endpoint") @Metadata(required = "true")
@@ -47,8 +47,8 @@ public class DirectVmEndpoint extends DefaultEndpoint implements AsyncEndpoint {
     private boolean failIfNoConsumers = true;
     @UriParam(label = "producer,advanced")
     private HeaderFilterStrategy headerFilterStrategy;
-    @UriParam(label = "advanced", defaultValue = "false")
-    private Boolean propagateProperties;
+    @UriParam(label = "advanced", defaultValue = "true")
+    private boolean propagateProperties = true;
 
     public DirectVmEndpoint(String endpointUri, DirectVmComponent component) {
         super(endpointUri, component);
@@ -130,15 +130,15 @@ public class DirectVmEndpoint extends DefaultEndpoint implements AsyncEndpoint {
         this.headerFilterStrategy = headerFilterStrategy;
     }
 
-    public Boolean isPropagateProperties() {
-        return propagateProperties == null ? getComponent().isPropagateProperties() : propagateProperties;
+    public boolean isPropagateProperties() {
+        return propagateProperties;
     }
 
     /**
-     * Whether to propagate or not properties from the producer side to the consumer side, and viceversa.
+     * Whether to propagate or not properties from the producer side to the consumer side, and vice versa.
      * <p>Default value: true.</p>
      */
-    public void setPropagateProperties(Boolean propagateProperties) {
+    public void setPropagateProperties(boolean propagateProperties) {
         this.propagateProperties = propagateProperties;
     }
 

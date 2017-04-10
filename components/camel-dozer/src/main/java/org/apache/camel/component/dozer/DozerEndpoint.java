@@ -23,13 +23,10 @@ import java.util.Map;
 
 import javax.el.ExpressionFactory;
 
-import com.sun.el.ExpressionFactoryImpl;
-
 import org.apache.camel.Component;
 import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
-import org.apache.camel.converter.dozer.DozerThreadContextClassLoader;
 import org.apache.camel.converter.dozer.DozerTypeConverterLoader;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.spi.UriEndpoint;
@@ -48,7 +45,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The dozer component provides the ability to map between Java beans using the Dozer mapping library.
  */
-@UriEndpoint(scheme = "dozer", title = "Dozer", syntax = "dozer:name", producerOnly = true, label = "transformation")
+@UriEndpoint(firstVersion = "2.15.0", scheme = "dozer", title = "Dozer", syntax = "dozer:name", producerOnly = true, label = "transformation")
 public class DozerEndpoint extends DefaultEndpoint {
     private static final Logger LOG = LoggerFactory.getLogger(DozerEndpoint.class);
 
