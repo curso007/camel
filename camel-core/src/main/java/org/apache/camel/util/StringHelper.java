@@ -341,8 +341,7 @@ public final class StringHelper {
 
         return value;
     }
-
-    // TODO: add javadoc
+    
     public static String[] splitOnCharacter(String value, String needle, int count) {
         String rc[] = new String[count];
         rc[0] = value;
@@ -672,6 +671,72 @@ public final class StringHelper {
         }
 
         return trimmed;
+    }
+    
+    /**
+     * Checks if the src string contains what
+     *
+     * @param src  is the source string to be checked
+     * @param what is the string which will be looked up in the src argument 
+     * @return true/false
+     */
+    public static boolean containsIgnoreCase(String src, String what) {
+        if (src == null || what == null) {
+            return false;
+        }
+        
+        final int length = what.length();
+        if (length == 0) {
+            return true; // Empty string is contained
+        }
+
+        final char firstLo = Character.toLowerCase(what.charAt(0));
+        final char firstUp = Character.toUpperCase(what.charAt(0));
+
+        for (int i = src.length() - length; i >= 0; i--) {
+            // Quick check before calling the more expensive regionMatches() method:
+            final char ch = src.charAt(i);
+            if (ch != firstLo && ch != firstUp) {
+                continue;
+            }
+
+            if (src.regionMatches(true, i, what, 0, length)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Outputs the bytes in human readable format in units of KB,MB,GB etc.
+     *
+     * @param locale The locale to apply during formatting. If l is {@code null} then no localization is applied.
+     * @param bytes number of bytes
+     * @return human readable output
+     * @see java.lang.String#format(Locale, String, Object...)
+     */
+    public static String humanReadableBytes(Locale locale, long bytes) {
+        int unit = 1024;
+        if (bytes < unit) {
+            return bytes + " B";
+        }
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format(locale, "%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
+
+    /**
+     * Outputs the bytes in human readable format in units of KB,MB,GB etc.
+     *
+     * The locale always used is the one returned by {@link java.util.Locale#getDefault()}. 
+     *
+     * @param bytes number of bytes
+     * @return human readable output
+     * @see org.apache.camel.util.StringHelper#humanReadableBytes(Locale, long)
+     */
+    public static String humanReadableBytes(long bytes) {
+        return humanReadableBytes(Locale.getDefault(), bytes);
     }
 
 }

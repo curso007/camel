@@ -16,6 +16,7 @@
  */
 package org.apache.camel.component.kafka;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,10 +29,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.AsyncCallback;
-import org.apache.camel.CamelException;
-import org.apache.camel.CamelExchangeException;
+import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultAsyncProducer;
+import org.apache.camel.util.URISupport;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -40,6 +41,7 @@ import org.apache.kafka.common.utils.Bytes;
 
 public class KafkaProducer extends DefaultAsyncProducer {
 
+    @SuppressWarnings("rawtypes")
     private org.apache.kafka.clients.producer.KafkaProducer kafkaProducer;
     private final KafkaEndpoint endpoint;
     private ExecutorService workerPool;
@@ -59,11 +61,15 @@ public class KafkaProducer extends DefaultAsyncProducer {
         if (brokers == null) {
             brokers = endpoint.getComponent().getBrokers();
         }
+        if (brokers == null) {
+            throw new IllegalArgumentException("URL to the Kafka brokers must be configured with the brokers option on either the component or endpoint.");
+        }
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
 
         return props;
     }
 
+    @SuppressWarnings("rawtypes")
     public org.apache.kafka.clients.producer.KafkaProducer getKafkaProducer() {
         return kafkaProducer;
     }
@@ -71,6 +77,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
     /**
      * To use a custom {@link org.apache.kafka.clients.producer.KafkaProducer} instance.
      */
+    @SuppressWarnings("rawtypes")
     public void setKafkaProducer(org.apache.kafka.clients.producer.KafkaProducer kafkaProducer) {
         this.kafkaProducer = kafkaProducer;
     }
@@ -84,6 +91,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     protected void doStart() throws Exception {
         Properties props = getProps();
         if (kafkaProducer == null) {
@@ -117,14 +125,36 @@ public class KafkaProducer extends DefaultAsyncProducer {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    protected Iterator<ProducerRecord> createRecorder(Exchange exchange) throws CamelException {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected Iterator<ProducerRecord> createRecorder(Exchange exchange) throws Exception {
         String topic = endpoint.getConfiguration().getTopic();
-        if (!endpoint.isBridgeEndpoint()) {
-            topic = exchange.getIn().getHeader(KafkaConstants.TOPIC, topic, String.class);
+
+        if (!endpoint.getConfiguration().isBridgeEndpoint()) {
+            String headerTopic = exchange.getIn().getHeader(KafkaConstants.TOPIC, String.class);
+            boolean allowHeader = true;
+
+            // when we do not bridge then detect if we try to send back to ourselves
+            // which we most likely do not want to do
+            if (headerTopic != null && endpoint.getConfiguration().isCircularTopicDetection()) {
+                Endpoint from = exchange.getFromEndpoint();
+                if (from instanceof KafkaEndpoint) {
+                    String fromTopic = ((KafkaEndpoint) from).getConfiguration().getTopic();
+                    allowHeader = !headerTopic.equals(fromTopic);
+                    if (!allowHeader) {
+                        log.debug("Circular topic detected from message header."
+                            + " Cannot send to same topic as the message comes from: {}"
+                            + ". Will use endpoint configured topic: {}", from, topic);
+                    }
+                }
+            }
+            if (allowHeader && headerTopic != null) {
+                topic = headerTopic;
+            }
         }
+
         if (topic == null) {
-            throw new CamelExchangeException("No topic key set", exchange);
+            // if topic property was not received from configuration or header parameters take it from the remaining URI
+            topic = URISupport.extractRemainderPath(new URI(endpoint.getEndpointUri()), true);
         }
 
         // endpoint take precedence over header configuration
@@ -194,7 +224,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     // Camel calls this method if the endpoint isSynchronous(), as the KafkaEndpoint creates a SynchronousDelegateProducer for it
     public void process(Exchange exchange) throws Exception {
         Iterator<ProducerRecord> c = createRecorder(exchange);
@@ -210,7 +240,11 @@ public class KafkaProducer extends DefaultAsyncProducer {
         }
 
         while (c.hasNext()) {
-            futures.add(kafkaProducer.send(c.next()));
+            ProducerRecord rec = c.next();
+            if (log.isDebugEnabled()) {
+                log.debug("Sending message to topic: {}, partition: {}, key: {}", rec.topic(), rec.partition(), rec.key());
+            }
+            futures.add(kafkaProducer.send(rec));
         }
         for (Future<RecordMetadata> f : futures) {
             //wait for them all to be sent
@@ -219,14 +253,18 @@ public class KafkaProducer extends DefaultAsyncProducer {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public boolean process(Exchange exchange, AsyncCallback callback) {
         try {
             Iterator<ProducerRecord> c = createRecorder(exchange);
             KafkaProducerCallBack cb = new KafkaProducerCallBack(exchange, callback);
             while (c.hasNext()) {
                 cb.increment();
-                kafkaProducer.send(c.next(), cb);
+                ProducerRecord rec = c.next();
+                if (log.isDebugEnabled()) {
+                    log.debug("Sending message to topic: {}, partition: {}, key: {}", rec.topic(), rec.partition(), rec.key());
+                }
+                kafkaProducer.send(rec, cb);
             }
             return cb.allSent();
         } catch (Exception ex) {
@@ -284,6 +322,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
 
         boolean allSent() {
             if (count.decrementAndGet() == 0) {
+                log.trace("All messages sent, continue routing.");
                 //was able to get all the work done while queuing the requests
                 callback.done(true);
                 return true;
@@ -305,6 +344,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
                 workerPool.submit(new Runnable() {
                     @Override
                     public void run() {
+                        log.trace("All messages sent, continue routing.");
                         callback.done(false);
                     }
                 });

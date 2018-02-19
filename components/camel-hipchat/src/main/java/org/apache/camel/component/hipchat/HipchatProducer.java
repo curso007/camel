@@ -17,11 +17,11 @@
 package org.apache.camel.component.hipchat;
 
 import java.io.IOException;
-
 import java.util.HashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.InvalidPayloadException;
 import org.apache.camel.Message;
@@ -32,10 +32,10 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.camel.util.UnsafeUriCharactersEncoder.encodeHttpURI;
 
 /**
  * The Hipchat producer to send message to a user and/or a room.
@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 public class HipchatProducer extends DefaultProducer {
     private static final Logger LOG = LoggerFactory.getLogger(HipchatProducer.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final CloseableHttpClient HTTP_CLIENT = HttpClients.createDefault();
     
     private transient String hipchatProducerToString;
 
@@ -71,7 +70,7 @@ public class HipchatProducer extends DefaultProducer {
             jsonParam.put(HipchatApiConstants.API_MESSAGE_COLOR, backGroundColor);
         }
         LOG.info("Sending message to room: " + room + ", " + MAPPER.writeValueAsString(jsonParam));
-        StatusLine statusLine = post(urlPath, jsonParam);
+        StatusLine statusLine = post(encodeHttpURI(urlPath), jsonParam);
         LOG.debug("Response status for send room message: " + statusLine);
         return statusLine;
     }
@@ -100,7 +99,7 @@ public class HipchatProducer extends DefaultProducer {
     protected StatusLine post(String urlPath, Map<String, String> postParam) throws IOException {
         HttpPost httpPost = new HttpPost(getConfig().hipChatUrl() + urlPath);
         httpPost.setEntity(new StringEntity(MAPPER.writeValueAsString(postParam), ContentType.APPLICATION_JSON));
-        CloseableHttpResponse closeableHttpResponse = HTTP_CLIENT.execute(httpPost);
+        CloseableHttpResponse closeableHttpResponse = getConfig().getHttpClient().execute(httpPost);
         try {
             return closeableHttpResponse.getStatusLine();
         } finally {

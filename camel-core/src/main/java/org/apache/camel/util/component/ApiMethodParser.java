@@ -110,7 +110,7 @@ public abstract class ApiMethodParser<T> {
             // remove all redundant spaces in generic parameters
             signature = signature.replaceAll("\\s*<\\s*", "<").replaceAll("\\s*>", ">");
 
-            log.debug("Processing " + signature);
+            log.debug("Processing {}", signature);
 
             final Matcher methodMatcher = METHOD_PATTERN.matcher(signature);
             if (!methodMatcher.matches()) {
@@ -190,7 +190,7 @@ public abstract class ApiMethodParser<T> {
                             }
                         }
                         // duplicate methods???
-                        log.warn("Duplicate methods found [" + model1 + "], [" + model2 + "]");
+                        log.warn("Duplicate methods found [{}], [{}]", model1, model2);
                         return 0;
                     }
                 }

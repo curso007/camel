@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.file.remote;
 
-import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.Proxy;
 import org.apache.camel.Processor;
 import org.apache.camel.component.file.GenericFileConfiguration;
@@ -29,8 +28,8 @@ import org.apache.camel.spi.UriParam;
  */
 @UriEndpoint(firstVersion = "1.1.0", scheme = "sftp", extendsScheme = "file", title = "SFTP",
         syntax = "sftp:host:port/directoryName", consumerClass = SftpConsumer.class, label = "file",
-        excludeProperties = "binary,passiveMode,receiveBufferSize,siteCommand,useList")
-public class SftpEndpoint extends RemoteFileEndpoint<ChannelSftp.LsEntry> {
+        excludeProperties = "binary,passiveMode,receiveBufferSize,siteCommand")
+public class SftpEndpoint extends RemoteFileEndpoint<SftpRemoteFile> {
 
     @UriParam
     protected SftpConfiguration configuration;
@@ -61,15 +60,15 @@ public class SftpEndpoint extends RemoteFileEndpoint<ChannelSftp.LsEntry> {
     }
 
     @Override
-    protected RemoteFileConsumer<ChannelSftp.LsEntry> buildConsumer(Processor processor) {
+    protected RemoteFileConsumer<SftpRemoteFile> buildConsumer(Processor processor) {
         return new SftpConsumer(this, processor, createRemoteFileOperations());
     }
 
-    protected GenericFileProducer<ChannelSftp.LsEntry> buildProducer() {
-        return new RemoteFileProducer<ChannelSftp.LsEntry>(this, createRemoteFileOperations());
+    protected GenericFileProducer<SftpRemoteFile> buildProducer() {
+        return new RemoteFileProducer<SftpRemoteFile>(this, createRemoteFileOperations());
     }
 
-    public RemoteFileOperations<ChannelSftp.LsEntry> createRemoteFileOperations() {
+    public RemoteFileOperations<SftpRemoteFile> createRemoteFileOperations() {
         SftpOperations operations = new SftpOperations(proxy);
         operations.setEndpoint(this);
         return operations;

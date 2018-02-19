@@ -19,11 +19,11 @@ package org.apache.camel.component.nagios;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.googlecode.jsendnsca.core.INagiosPassiveCheckSender;
-import com.googlecode.jsendnsca.core.Level;
-import com.googlecode.jsendnsca.core.MessagePayload;
-import com.googlecode.jsendnsca.core.NagiosPassiveCheckSender;
-import org.apache.camel.Producer;
+import com.googlecode.jsendnsca.Level;
+import com.googlecode.jsendnsca.MessagePayload;
+import com.googlecode.jsendnsca.NagiosPassiveCheckSender;
+import com.googlecode.jsendnsca.PassiveCheckSender;
+
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.verify;
  */
 public class NagiosTest extends CamelTestSupport {
     @Mock
-    protected static INagiosPassiveCheckSender nagiosPassiveCheckSender;
+    protected static PassiveCheckSender nagiosPassiveCheckSender;
 
     protected boolean canRun;
 
@@ -65,7 +65,7 @@ public class NagiosTest extends CamelTestSupport {
             return;
         }
 
-        MessagePayload expectedPayload = new MessagePayload("localhost", Level.OK.ordinal(), context.getName(),  "Hello Nagios");
+        MessagePayload expectedPayload = new MessagePayload("localhost", Level.OK, context.getName(),  "Hello Nagios");
 
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
@@ -85,8 +85,8 @@ public class NagiosTest extends CamelTestSupport {
             return;
         }
 
-        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.OK.ordinal(), context.getName(),  "Hello Nagios");
-        MessagePayload expectedPayload2 = new MessagePayload("localhost", Level.OK.ordinal(), context.getName(),  "Bye Nagios");
+        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.OK, context.getName(),  "Hello Nagios");
+        MessagePayload expectedPayload2 = new MessagePayload("localhost", Level.OK, context.getName(),  "Bye Nagios");
 
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(2);
@@ -108,7 +108,7 @@ public class NagiosTest extends CamelTestSupport {
             return;
         }
 
-        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.WARNING.ordinal(), context.getName(),  "Hello Nagios");
+        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.WARNING, context.getName(),  "Hello Nagios");
 
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
@@ -126,7 +126,7 @@ public class NagiosTest extends CamelTestSupport {
             return;
         }
 
-        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.WARNING.ordinal(), context.getName(),  "Hello Nagios");
+        MessagePayload expectedPayload1 = new MessagePayload("localhost", Level.WARNING, context.getName(),  "Hello Nagios");
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedBodiesReceived("Hello Nagios");
@@ -144,7 +144,7 @@ public class NagiosTest extends CamelTestSupport {
             return;
         }
 
-        MessagePayload expectedPayload1 = new MessagePayload("myHost", Level.CRITICAL.ordinal(), "myService",  "Hello Nagios");
+        MessagePayload expectedPayload1 = new MessagePayload("myHost", Level.CRITICAL, "myService",  "Hello Nagios");
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedBodiesReceived("Hello Nagios");
@@ -168,12 +168,12 @@ public class NagiosTest extends CamelTestSupport {
 
                 NagiosComponent nagiosComponent = new NagiosComponent();
                 nagiosComponent.setCamelContext(context);
-                NagiosEndpoint nagiousEndpoint = (NagiosEndpoint) nagiosComponent.createEndpoint(uri);
-                nagiousEndpoint.setSender(nagiosPassiveCheckSender);
-                Producer nagiosProducer = nagiousEndpoint.createProducer();
+                NagiosEndpoint nagiosEndpoint = (NagiosEndpoint) nagiosComponent.createEndpoint(uri);
+                nagiosEndpoint.setSender(nagiosPassiveCheckSender);
+                nagiosEndpoint.createProducer();
 
                 from("direct:start")
-                        .to(nagiousEndpoint)
+                        .to(nagiosEndpoint)
                         .to("mock:result");
             }
         };

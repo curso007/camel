@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -90,6 +91,12 @@ import org.slf4j.LoggerFactory;
  * @version
  */
 public abstract class CamelTestSupport extends TestSupport {
+
+    /**
+     * JVM system property which can be set to true to turn on dumping route coverage statistics.
+     */
+    public static final String ROUTE_COVERAGE_ENABLED = "CamelTestRouteCoverage";
+
     private static final Logger LOG = LoggerFactory.getLogger(CamelTestSupport.class);
     private static final ThreadLocal<Boolean> INIT = new ThreadLocal<Boolean>();
     private static ThreadLocal<ModelCamelContext> threadCamelContext = new ThreadLocal<ModelCamelContext>();
@@ -127,6 +134,8 @@ public abstract class CamelTestSupport extends TestSupport {
      * <p/>
      * This allows tooling or manual inspection of the stats, so you can generate a route trace diagram of which EIPs
      * have been in use and which have not. Similar concepts as a code coverage report.
+     * <p/>
+     * You can also turn on route coverage globally via setting JVM system property <tt>CamelTestRouteCoverage=true</tt>.
      *
      * @return <tt>true</tt> to write route coverage status in an xml file in the <tt>target/camel-route-coverage</tt> directory after the test has finished.
      */
@@ -283,7 +292,7 @@ public abstract class CamelTestSupport extends TestSupport {
     private void doSetUp() throws Exception {
         log.debug("setUp test");
         // jmx is enabled if we have configured to use it, or if dump route coverage is enabled (it requires JMX)
-        boolean jmx = useJmx() || isDumpRouteCoverage();
+        boolean jmx = useJmx() || isRouteCoverageEnabled();
         if (jmx) {
             enableJMX();
         } else {
@@ -381,6 +390,10 @@ public abstract class CamelTestSupport extends TestSupport {
         }
     }
 
+    private boolean isRouteCoverageEnabled() {
+        return System.getProperty(ROUTE_COVERAGE_ENABLED, "false").equalsIgnoreCase("true") || isDumpRouteCoverage();
+    }
+
     @After
     public void tearDown() throws Exception {
         long time = watch.stop();
@@ -390,7 +403,7 @@ public abstract class CamelTestSupport extends TestSupport {
         log.info("Took: " + TimeUtils.printDuration(time) + " (" + time + " millis)");
 
         // if we should dump route stats, then write that to a file
-        if (isDumpRouteCoverage()) {
+        if (isRouteCoverageEnabled()) {
             String className = this.getClass().getSimpleName();
             String dir = "target/camel-route-coverage";
             String name = className + "-" + getTestMethodName() + ".xml";
@@ -409,7 +422,7 @@ public abstract class CamelTestSupport extends TestSupport {
                 file.mkdirs();
                 file = new File(dir, name);
 
-                log.info("Dumping route coverage to file: " + file);
+                log.info("Dumping route coverage to file: {}", file);
                 InputStream is = new ByteArrayInputStream(combined.getBytes());
                 OutputStream os = new FileOutputStream(file, false);
                 IOHelper.copyAndCloseInput(is, os);
@@ -460,11 +473,14 @@ public abstract class CamelTestSupport extends TestSupport {
             routesSummary.append("\t\tRoute ").append(route.getId()).append(" total: ").append(managedRoute.getExchangesTotal()).append(" (").append(routeCoveragePercentage).append("%)\n");
 
             if (server != null) {
-                for (ManagedProcessorMBean managedProcessor : processorsForRoute.get(route.getId())) {
-                    String processorId = managedProcessor.getProcessorId();
-                    long processorExchangesTotal = managedProcessor.getExchangesTotal();
-                    long processorCoveragePercentage = Math.round((double) processorExchangesTotal / contextExchangesTotal * 100);
-                    routesSummary.append("\t\t\tProcessor ").append(processorId).append(" total: ").append(processorExchangesTotal).append(" (").append(processorCoveragePercentage).append("%)\n");
+                List<ManagedProcessorMBean> processors = processorsForRoute.get(route.getId());
+                if (processors != null) {
+                    for (ManagedProcessorMBean managedProcessor : processors) {
+                        String processorId = managedProcessor.getProcessorId();
+                        long processorExchangesTotal = managedProcessor.getExchangesTotal();
+                        long processorCoveragePercentage = Math.round((double) processorExchangesTotal / contextExchangesTotal * 100);
+                        routesSummary.append("\t\t\tProcessor ").append(processorId).append(" total: ").append(processorExchangesTotal).append(" (").append(processorCoveragePercentage).append("%)\n");
+                    }
                 }
             }
         }
@@ -481,7 +497,6 @@ public abstract class CamelTestSupport extends TestSupport {
 
         builder.append(routesSummary);
         log.info(builder.toString());
-
     }
 
     /**
@@ -496,30 +511,28 @@ public abstract class CamelTestSupport extends TestSupport {
         ObjectName processorsObjectName = new ObjectName(domain + ":context=" + context.getManagementName() + ",type=processors,name=*");
         Set<ObjectName> objectNames = server.queryNames(processorsObjectName, null);
 
-        if (server != null) {
-            for (ObjectName objectName : objectNames) {
-                String routeId = server.getAttribute(objectName, "RouteId").toString();
-                String name = objectName.getKeyProperty("name");
-                name = ObjectName.unquote(name);
+        for (ObjectName objectName : objectNames) {
+            String routeId = server.getAttribute(objectName, "RouteId").toString();
+            String name = objectName.getKeyProperty("name");
+            name = ObjectName.unquote(name);
 
-                ManagedProcessorMBean managedProcessor = context.getManagedProcessor(name, ManagedProcessorMBean.class);
+            ManagedProcessorMBean managedProcessor = context.getManagedProcessor(name, ManagedProcessorMBean.class);
 
-                if (managedProcessor != null) {
-                    if (processorsForRoute.get(routeId) == null) {
-                        List<ManagedProcessorMBean> processorsList = new ArrayList<>();
-                        processorsList.add(managedProcessor);
+            if (managedProcessor != null) {
+                if (processorsForRoute.get(routeId) == null) {
+                    List<ManagedProcessorMBean> processorsList = new ArrayList<>();
+                    processorsList.add(managedProcessor);
 
-                        processorsForRoute.put(routeId, processorsList);
-                    } else {
-                        processorsForRoute.get(routeId).add(managedProcessor);
-                    }
+                    processorsForRoute.put(routeId, processorsList);
+                } else {
+                    processorsForRoute.get(routeId).add(managedProcessor);
                 }
             }
         }
 
         // sort processors by position in route definition
         for (Map.Entry<String, List<ManagedProcessorMBean>> entry : processorsForRoute.entrySet()) {
-            Collections.sort(entry.getValue(), (o1, o2) -> o1.getIndex().compareTo(o2.getIndex()));
+            Collections.sort(entry.getValue(), Comparator.comparing(ManagedProcessorMBean::getIndex));
         }
 
         return processorsForRoute;

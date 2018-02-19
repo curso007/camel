@@ -33,6 +33,7 @@ import org.apache.camel.util.ServiceHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Deprecated
 public class DefaultTraceEventHandler implements TraceEventHandler, Service {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultTraceEventHandler.class);
     
@@ -88,7 +89,7 @@ public class DefaultTraceEventHandler implements TraceEventHandler, Service {
             // should we use ordinary or jpa objects
             if (tracer.isUseJpa()) {
                 if (LOG.isTraceEnabled()) {
-                    LOG.trace("Using class: " + this.jpaTraceEventMessageClassName + " for tracing event messages");
+                    LOG.trace("Using class: {} for tracing event messages", this.jpaTraceEventMessageClassName);
                 }
 
                 // load the jpa event message class

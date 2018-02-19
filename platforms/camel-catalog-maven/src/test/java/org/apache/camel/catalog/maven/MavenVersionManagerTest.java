@@ -156,13 +156,13 @@ public class MavenVersionManagerTest extends TestCase {
         System.out.println("2.18.1 has " + components + " components");
         assertFalse("Should not have ejb component", catalog.findComponentNames().contains("ejb"));
 
-        loaded = catalog.loadVersion("2.19.0-SNAPSHOT");
-        assertTrue("Unable to switch to Camel Catalog 2.19.0-SNAPSHOT", loaded);
-        loaded = catalog.loadRuntimeProviderVersion("org.apache.camel", "camel-catalog-provider-karaf", "2.19.0-SNAPSHOT");
-        assertTrue("Unable to load Karaf Provider Camel Catalog 2.19.0-SNAPSHOT", loaded);
+        loaded = catalog.loadVersion("2.19.1");
+        assertTrue("Unable to switch to Camel Catalog 2.19.1", loaded);
+        loaded = catalog.loadRuntimeProviderVersion("org.apache.camel", "camel-catalog-provider-karaf", "2.19.1");
+        assertTrue("Unable to load Karaf Provider Camel Catalog 2.19.1", loaded);
         int componentsNewer = catalog.findComponentNames().size();
         assertTrue("Both catalog versions shouldn't have the same count of components.", components != componentsNewer);
-        System.out.println("2.19.0-SNAPSHOT has " + componentsNewer + " components");
+        System.out.println("2.19.1 has " + componentsNewer + " components");
         assertFalse("Should not have ejb component", catalog.findComponentNames().contains("ejb"));
 
         loaded = catalog.loadVersion("2.18.1");
@@ -175,4 +175,16 @@ public class MavenVersionManagerTest extends TestCase {
 
         System.out.println("2.18.1 has " + components3 + " components");
     }
+
+    @Test
+    public void testLoadUnknownVersion() throws Exception {
+        MavenVersionManager manager = new MavenVersionManager();
+        String current = manager.getLoadedVersion();
+        assertNull(current);
+
+        // version 2.99 does not exists and cannot be loaded
+        boolean loaded = manager.loadVersion("2.99");
+        assertFalse(loaded);
+    }
+
 }

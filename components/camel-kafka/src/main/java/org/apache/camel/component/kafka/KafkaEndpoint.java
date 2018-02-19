@@ -20,7 +20,6 @@ import java.lang.reflect.Field;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 
-import org.apache.camel.Component;
 import org.apache.camel.Consumer;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -51,8 +50,6 @@ public class KafkaEndpoint extends DefaultEndpoint implements MultipleConsumersS
 
     @UriParam
     private KafkaConfiguration configuration = new KafkaConfiguration();
-    @UriParam(label = "producer")
-    private boolean bridgeEndpoint;
 
     public KafkaEndpoint() {
     }
@@ -167,6 +164,7 @@ public class KafkaEndpoint extends DefaultEndpoint implements MultipleConsumersS
         return getCamelContext().getExecutorServiceManager().newThreadPool(this, "KafkaProducer[" + configuration.getTopic() + "]", core, max);
     }
 
+    @SuppressWarnings("rawtypes")
     public Exchange createKafkaExchange(ConsumerRecord record) {
         Exchange exchange = super.createExchange();
 
@@ -174,6 +172,8 @@ public class KafkaEndpoint extends DefaultEndpoint implements MultipleConsumersS
         message.setHeader(KafkaConstants.PARTITION, record.partition());
         message.setHeader(KafkaConstants.TOPIC, record.topic());
         message.setHeader(KafkaConstants.OFFSET, record.offset());
+        message.setHeader(KafkaConstants.HEADERS, record.headers());
+        message.setHeader(KafkaConstants.TIMESTAMP, record.timestamp());
         if (record.key() != null) {
             message.setHeader(KafkaConstants.KEY, record.key());
         }
@@ -186,14 +186,4 @@ public class KafkaEndpoint extends DefaultEndpoint implements MultipleConsumersS
         return new KafkaProducer(endpoint);
     }
 
-    public boolean isBridgeEndpoint() {
-        return bridgeEndpoint;
-    }
-
-    /**
-     * If the option is true, then KafkaProducer will ignore the KafkaConstants.TOPIC header setting of the inbound message.
-     */
-    public void setBridgeEndpoint(boolean bridgeEndpoint) {
-        this.bridgeEndpoint = bridgeEndpoint;
-    }
 }

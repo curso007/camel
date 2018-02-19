@@ -34,7 +34,6 @@ import org.apache.camel.http.common.HttpConstants;
 import org.apache.camel.http.common.HttpConsumer;
 import org.apache.camel.http.common.HttpHelper;
 import org.apache.camel.http.common.HttpMessage;
-import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.UnsafeUriCharactersEncoder;
 import org.eclipse.jetty.continuation.Continuation;
@@ -94,6 +93,20 @@ public class CamelContinuationServlet extends CamelServlet {
             return;
         }
 
+        // if its an OPTIONS request then return which method is allowed
+        if ("OPTIONS".equals(request.getMethod()) && !consumer.isOptionsEnabled()) {
+            String s;
+            if (consumer.getEndpoint().getHttpMethodRestrict() != null) {
+                s = "OPTIONS," + consumer.getEndpoint().getHttpMethodRestrict();
+            } else {
+                // allow them all
+                s = "GET,HEAD,POST,PUT,DELETE,TRACE,OPTIONS,CONNECT,PATCH";
+            }
+            response.addHeader("Allow", s);
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
         if (consumer.getEndpoint().getHttpMethodRestrict() != null) {
             Iterator<?> it = ObjectHelper.createIterable(consumer.getEndpoint().getHttpMethodRestrict()).iterator();
             boolean match = false;
@@ -147,7 +160,7 @@ public class CamelContinuationServlet extends CamelServlet {
             }
 
             // a new request so create an exchange
-            final Exchange exchange = new DefaultExchange(consumer.getEndpoint(), ExchangePattern.InOut);
+            final Exchange exchange = consumer.getEndpoint().createExchange(ExchangePattern.InOut);
 
             if (consumer.getEndpoint().isBridgeEndpoint()) {
                 exchange.setProperty(Exchange.SKIP_GZIP_ENCODING, Boolean.TRUE);
@@ -159,7 +172,7 @@ public class CamelContinuationServlet extends CamelServlet {
             
             HttpHelper.setCharsetFromContentType(request.getContentType(), exchange);
             
-            exchange.setIn(new HttpMessage(exchange, request, response));
+            exchange.setIn(new HttpMessage(exchange, consumer.getEndpoint(), request, response));
             // set context path as header
             String contextPath = consumer.getEndpoint().getPath();
             exchange.getIn().setHeader("CamelServletContextPath", contextPath);

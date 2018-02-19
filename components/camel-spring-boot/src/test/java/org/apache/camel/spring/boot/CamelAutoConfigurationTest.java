@@ -50,7 +50,8 @@ import static org.mockito.Mockito.verify;
         "camel.springboot.consumerTemplateCacheSize=100",
         "camel.springboot.jmxEnabled=true",
         "camel.springboot.name=customName",
-        "camel.springboot.typeConversion=true"}
+        "camel.springboot.typeConversion=true",
+        "camel.springboot.threadNamePattern=customThreadName #counter#"}
 )
 public class CamelAutoConfigurationTest extends Assert {
 
@@ -136,6 +137,7 @@ public class CamelAutoConfigurationTest extends Assert {
     @Test
     public void shouldCallCamelContextConfiguration() {
         verify(camelContextConfiguration).beforeApplicationStart(camelContext);
+        verify(camelContextConfiguration).afterApplicationStart(camelContext);
     }
 
     @Test
@@ -168,6 +170,11 @@ public class CamelAutoConfigurationTest extends Assert {
 
         // Then
         xmlAutoLoadingMock.assertIsSatisfied();
+    }
+
+    @Test
+    public void shouldChangeThreadNamePattern() {
+        assertEquals(camelContext.getExecutorServiceManager().getThreadNamePattern(), "customThreadName #counter#");
     }
 
     @Configuration

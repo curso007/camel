@@ -94,7 +94,9 @@ public class MailMessage extends DefaultMessage {
 
     @Override
     public MailMessage newInstance() {
-        return new MailMessage(null, this.mapMailMessage);
+        MailMessage answer = new MailMessage(null, this.mapMailMessage);
+        answer.setCamelContext(getCamelContext());
+        return answer;
     }
 
     @Override
@@ -114,9 +116,7 @@ public class MailMessage extends DefaultMessage {
                 if (binding != null) {
                     map.putAll(binding.extractHeadersFromMail(mailMessage, getExchange()));
                 }
-            } catch (MessagingException e) {
-                throw new RuntimeCamelException("Error accessing headers due to: " + e.getMessage(), e);
-            } catch (IOException e) {
+            } catch (MessagingException | IOException e) {
                 throw new RuntimeCamelException("Error accessing headers due to: " + e.getMessage(), e);
             }
         }

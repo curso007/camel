@@ -30,27 +30,28 @@ import com.rabbitmq.client.Connection;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultMessage;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 
 public class RabbitMQProducerTest {
 
     private RabbitMQEndpoint endpoint = Mockito.mock(RabbitMQEndpoint.class);
     private Exchange exchange = Mockito.mock(Exchange.class);
-    private Message message = new DefaultMessage();
+    private Message message = new DefaultMessage(new DefaultCamelContext());
     private Connection conn = Mockito.mock(Connection.class);
 
     @Before
     public void before() throws IOException, TimeoutException {
         Mockito.when(exchange.getIn()).thenReturn(message);
-        Mockito.when(endpoint.connect(Matchers.any(ExecutorService.class))).thenReturn(conn);
+        Mockito.when(endpoint.connect(any(ExecutorService.class))).thenReturn(conn);
         Mockito.when(conn.createChannel()).thenReturn(null);
         Mockito.when(endpoint.getMessageConverter()).thenReturn(new RabbitMQMessageConverter());
     }

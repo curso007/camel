@@ -16,8 +16,10 @@
  */
 package org.apache.camel.api.management.mbean;
 
+import org.apache.camel.Experimental;
 import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedOperation;
+import org.apache.camel.spi.RouteError;
 
 public interface ManagedRouteMBean extends ManagedPerformanceCounterMBean {
 
@@ -102,6 +104,12 @@ public interface ManagedRouteMBean extends ManagedPerformanceCounterMBean {
     @ManagedOperation(description = "Remove route (must be stopped)")
     boolean remove() throws Exception;
 
+    @ManagedOperation(description = "Restarts route (1 second delay before starting)")
+    void restart() throws Exception;
+
+    @ManagedOperation(description = "Restarts route (using delay in seconds before starting)")
+    void restart(long delay) throws Exception;
+
     @ManagedOperation(description = "Dumps the route as XML")
     String dumpRouteAsXml() throws Exception;
 
@@ -129,5 +137,11 @@ public interface ManagedRouteMBean extends ManagedPerformanceCounterMBean {
     @ManagedAttribute(description = "Oldest inflight exchange id")
     String getOldestInflightExchangeId();
 
+    @Experimental
+    @ManagedAttribute(description = "Route controller")
+    Boolean getHasRouteController();
 
+    @Experimental
+    @ManagedAttribute(description = "Last error")
+    RouteError getLastError();
 }

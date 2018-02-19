@@ -24,14 +24,19 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.camel.catalog.CamelCatalog;
+import org.apache.camel.catalog.DefaultCamelCatalog;
 import org.apache.camel.maven.connector.util.FileHelper;
 import org.apache.camel.maven.connector.util.GitHelper;
 import org.apache.camel.maven.connector.util.JSonSchemaHelper;
@@ -43,6 +48,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.plugins.jar.AbstractJarMojo;
+
+import static org.apache.camel.maven.connector.util.JSonSchemaHelper.prettyPrint;
 
 @Mojo(name = "jar", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, requiresProject = true, threadSafe = true,
         requiresDependencyResolution = ResolutionScope.RUNTIME)
@@ -66,6 +73,14 @@ public class ConnectorMojo extends AbstractJarMojo {
      */
     @Parameter(defaultValue = "false")
     private boolean includeGitUrl;
+
+    /**
+     * Whether to output JSon connector schema files in pretty print mode or not
+     */
+    @Parameter(defaultValue = "true")
+    private boolean prettyPrint;
+
+    private CamelCatalog catalog = new DefaultCamelCatalog();
 
     @Override
     protected File getClassesDirectory() {
@@ -111,17 +126,20 @@ public class ConnectorMojo extends AbstractJarMojo {
                 if (schema != null) {
                     String json = FileHelper.loadText(new FileInputStream(schema));
 
-                    List<Map<String, String>> rows = JSonSchemaHelper.parseJsonSchema("component", json, false);
+                    List<Map<String, String>> rows = org.apache.camel.catalog.JSonSchemaHelper.parseJsonSchema("component", json, false);
                     String header = buildComponentHeaderSchema(rows, dto, gitUrl);
                     getLog().debug(header);
 
-                    rows = JSonSchemaHelper.parseJsonSchema("componentProperties", json, true);
+                    rows = org.apache.camel.catalog.JSonSchemaHelper.parseJsonSchema("componentProperties", json, true);
                     String componentOptions = buildComponentOptionsSchema(rows, dto);
                     getLog().debug(componentOptions);
 
-                    rows = JSonSchemaHelper.parseJsonSchema("properties", json, true);
+                    rows = org.apache.camel.catalog.JSonSchemaHelper.parseJsonSchema("properties", json, true);
                     String endpointOptions = buildEndpointOptionsSchema(rows, dto);
                     getLog().debug(endpointOptions);
+
+                    String connectorOptions = buildConnectorOptionsSchema(dto);
+                    getLog().debug(connectorOptions);
 
                     // generate the json file
                     StringBuilder jsonSchema = new StringBuilder();
@@ -129,13 +147,16 @@ public class ConnectorMojo extends AbstractJarMojo {
                     jsonSchema.append(header);
                     jsonSchema.append(componentOptions);
                     jsonSchema.append(endpointOptions);
+                    jsonSchema.append(connectorOptions);
                     jsonSchema.append("}\n");
 
                     String newJson = jsonSchema.toString();
 
                     // parse ourselves
-                    rows = JSonSchemaHelper.parseJsonSchema("component", newJson, false);
+                    rows = org.apache.camel.catalog.JSonSchemaHelper.parseJsonSchema("component", newJson, false);
                     String newScheme = getOption(rows, "scheme");
+
+                    checkConnectorScheme(newScheme);
 
                     // write the json file to the target directory as if camel apt would do it
                     String javaType = (String) dto.get("javaType");
@@ -146,6 +167,8 @@ public class ConnectorMojo extends AbstractJarMojo {
                     File out = new File(subDir, name);
 
                     FileOutputStream fos = new FileOutputStream(out, false);
+                    // output as pretty print
+                    newJson = prettyPrint ? prettyPrint(newJson) : newJson;
                     fos.write(newJson.getBytes());
                     fos.close();
 
@@ -170,6 +193,16 @@ public class ConnectorMojo extends AbstractJarMojo {
         }
 
         return super.createArchive();
+    }
+
+    private void checkConnectorScheme(String connectorScheme) {
+        List<String> componentNames = catalog.findComponentNames();
+        if (componentNames != null && componentNames.contains(connectorScheme)) {
+            String format = "Can't package a connector with scheme '%s' as a component with the same scheme is already registered in the catalog";
+            String message = String.format(format, connectorScheme);
+            getLog().error(message);
+            throw new IllegalArgumentException(message);
+        }
     }
 
     private String embedGitUrlInCamelConnectorJSon(ObjectMapper mapper, Map dto) throws MojoExecutionException {
@@ -232,6 +265,7 @@ public class ConnectorMojo extends AbstractJarMojo {
         sb.append("  \"componentProperties\": {\n");
 
         boolean first = true;
+
         for (int i = 0; i < rows.size(); i++) {
             Map<String, String> row = rows.get(i);
             String key = row.get("name");
@@ -282,6 +316,25 @@ public class ConnectorMojo extends AbstractJarMojo {
         Map values = (Map) dto.get("endpointValues");
         Map overrides = (Map) dto.get("endpointOverrides");
 
+        // if the dto is scheduled then we need to add timer options
+        if ("timer".equals(dto.get("scheduler"))) {
+            // include the period option from the timer as we use that
+            Map<String, String> period = new LinkedHashMap<>();
+            period.put("name", "schedulerPeriod");
+            period.put("kind", "parameter");
+            period.put("displayName", "Period");
+            period.put("group", "consumer");
+            period.put("type", "integer");
+            period.put("javaType", "long");
+            period.put("deprecated", "false");
+            period.put("secret", "false");
+            period.put("defaultValue", "1000");
+            period.put("description", "Delay in milli seconds between scheduling (executing)");
+
+            getLog().debug("Connector is using scheduler: timer");
+            rows.add(period);
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("  \"properties\": {\n");
 
@@ -323,6 +376,39 @@ public class ConnectorMojo extends AbstractJarMojo {
             first = false;
         }
         if (!first) {
+            sb.append("\n");
+        }
+
+        sb.append("  },\n");
+        return sb.toString();
+    }
+
+    private String buildConnectorOptionsSchema(Map dto) throws JsonProcessingException {
+        // find the endpoint options
+        Map<String, Map> properties = (Map) dto.get("connectorProperties");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("  \"connectorProperties\": {\n");
+
+        AtomicBoolean first = new AtomicBoolean(true);
+
+        if (properties != null) {
+            for (Map.Entry<String, Map> entry: properties.entrySet()) {
+                Map row = entry.getValue();
+                row.put("name", entry.getKey());
+
+                String line = buildJSonLineFromRow(row);
+
+                if (!first.get()) {
+                    sb.append(",\n");
+                }
+                sb.append("    ").append(line);
+
+                first.set(false);
+            }
+        }
+
+        if (!first.get()) {
             sb.append("\n");
         }
 
@@ -535,9 +621,9 @@ public class ConnectorMojo extends AbstractJarMojo {
         Set<String> enums = null;
         // the enum can either be a List or String
         value = row.get("enum");
-        if (value != null && value instanceof List) {
+        if (value instanceof List) {
             enums = new LinkedHashSet<String>((List)value);
-        } else if (value != null && value instanceof String) {
+        } else if (value instanceof String) {
             String[] array = value.toString().split(",");
             enums = Arrays.stream(array).collect(Collectors.toSet());
         }

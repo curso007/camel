@@ -1,4 +1,5 @@
-## Bindy DataFormat
+[[bindy-dataformat]]
+== Bindy DataFormat
 
 *Available as of Camel version 2.0*
 
@@ -60,13 +61,13 @@ The Bindy dataformat supports 4 options which are listed below.
 
 
 [width="100%",cols="2s,1m,1m,6",options="header"]
-|=======================================================================
+|===
 | Name | Default | Java Type | Description
-| type |  | BindyType | Whether to use csv fixed or key value pairs mode. The default value is either Csv or KeyValue depending on chosen dataformat.
+| type |  | BindyType | Whether to use csv, fixed or key value pairs mode. The default value is either Csv or KeyValue depending on chosen dataformat.
 | classType |  | String | Name of model class to use.
-| locale |  | String | To configure a default locale to use such as us for united states. To use the JVM platform default locale then use the name default
-| contentTypeHeader | false | Boolean | Whether the data format should set the Content-Type header with the type from the data format if the data format is capable of doing so. For example application/xml for data formats marshalling to XML or application/json for data formats marshalling to JSon etc.
-|=======================================================================
+| locale |  | String | To configure a default locale to use, such as us for united states. To use the JVM platform default locale then use the name default
+| contentTypeHeader | false | Boolean | Whether the data format should set the Content-Type header with the type from the data format if the data format is capable of doing so. For example application/xml for data formats marshalling to XML, or application/json for data formats marshalling to JSon etc.
+|===
 // dataformat options: END
 
 
@@ -108,8 +109,8 @@ to several children model classes.
 
 |separator |string |mandatory - can be ',' or ';' or 'anything'. This value is interpreted
 as a regular expression. If you want to use a sign which has a special
-meaning in regular expressions, e.g. the '|' sign, than you have to mask
-it, like '|'
+meaning in regular expressions, e.g. the '\|' sign, than you have to mask
+it, like '\|'
 
 |skipFirstLine |boolean |optional - default value = false - allow to skip the first line of the
 CSV file
@@ -136,6 +137,11 @@ declared one time.
 
 |quoting |boolean |*Camel 2.11:*optional - default value = false - Indicate if the values
 must be quoted when marshaling when CSV is generated.
+
+|endWithLineBreak |boolean |*Camel 2.21:* optional - default value = true - Indicate if the CSV generated file 
+should end with a line break.
+
+|
 |=======================================================================
 
 *case 1 : separator = ','*
@@ -431,6 +437,9 @@ a decimal point implied at a specified location
 |lengthPos |int |*Camel 2.11*: optional - can be used to identify a data field in a
 fixed-length record that defines the fixed length for this field
 
+|align |string |optional - default value = "R" - Align the text to the right or left within a fixed-length field.
+Use values 'R' or 'L'
+
 |delimiter |string |*Camel 2.11:* optional - can be used to demarcate the end of a variable-length field within a fixed-length record
 |=======================================================================
 
@@ -704,7 +713,14 @@ field, we can then add 'padd' characters.
 |crlf |string |optional - possible values = WINDOWS,UNIX,MAC, or custom; default value.
 WINDOWS - allow to define the carriage return character to use. If you
 specify a value other than the three listed before, the value you enter
-(custom) will be used as the CRLF character(s)
+(custom) will be used as the CRLF character(s). This option is used only during marshalling, 
+whereas unmarshalling uses system default JDK provided line delimiter unless eol is customized
+
+|eol |string |optional - default="" which is empty string. Character to be used to process
+considering end of line after each record while unmarshalling (optional - default = "" 
+which help default JDK provided line delimiter to be used unless any other line delimiter
+provided). This option is used only during unmarshalling, where marshalling uses system default
+provided line delimiter as "WINDOWS" unless any other value is provided
 
 |paddingChar |char |mandatory - default value = ' '
 
@@ -1683,8 +1699,8 @@ from("file://inbox")
 -----------------------------
 
 Alternatively, you can use a named reference to a data format which can
-then be defined in your link:registry.html[Registry] e.g. your
-link:spring.html[Spring] XML file:
+then be defined in your Registry e.g. your
+Spring XML file:
 
 [source,java]
 ---------------------------------
@@ -1723,7 +1739,7 @@ Each object can be retrieve using its class name.
 
 Assuming that you want to extract a single Order object from this map
 for processing in a route, you could use a combination of a
-link:splitter.html[Splitter] and a link:processor.html[Processor] as per
+Splitter and a Processor as per
 the following:
 
 [source,java]
@@ -1834,7 +1850,7 @@ To use Bindy in your camel routes you need to add the a dependency on
 
 If you use maven you could just add the following to your pom.xml,
 substituting the version number for the latest & greatest release (see
-link:download.html[the download page for the latest versions]).
+the download page for the latest versions).
 
 [source,java]
 --------------------------------------

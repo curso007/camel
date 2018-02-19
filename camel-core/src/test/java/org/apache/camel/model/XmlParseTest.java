@@ -94,6 +94,14 @@ public class XmlParseTest extends XmlTestSupport {
         assertChildTo(route, "mock:end", 1);
     }
 
+    public void testParseSagaXml() throws Exception {
+        RouteDefinition route = assertOneRoute("saga.xml");
+        assertFrom(route, "direct:start");
+        SagaDefinition node = assertNthProcessorInstanceOf(SagaDefinition.class, route, 0);
+        assertNotNull(node.getCompensation());
+        assertChildTo(route, "mock:end", 2);
+    }
+
     public void testParseScriptXml() throws Exception {
         RouteDefinition route = assertOneRoute("script.xml");
         assertFrom(route, "direct:start");
@@ -371,14 +379,14 @@ public class XmlParseTest extends XmlTestSupport {
         ProcessorDefinition<?> processor = assertOneElement(route.getOutputs());
         ToDefinition value = assertIsInstanceOf(ToDefinition.class, processor);
         String text = message + "To URI";
-        log.info("Testing: " + text + " is equal to: " + uri + " for processor: " + processor);
+        log.info("Testing: {} is equal to: {} for processor: {}", text, uri, processor);
         assertEquals(text, uri, value.getUri());
     }
 
     protected void assertTo(String message, ProcessorDefinition<?> processor, String uri) {
         ToDefinition value = assertIsInstanceOf(ToDefinition.class, processor);
         String text = message + "To URI";
-        log.info("Testing: " + text + " is equal to: " + uri + " for processor: " + processor);
+        log.info("Testing: {} is equal to: {} for processor: {}", text, uri, processor);
         assertEquals(text, uri, value.getUri());
     }
 

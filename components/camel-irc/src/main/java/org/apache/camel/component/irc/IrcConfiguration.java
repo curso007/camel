@@ -125,11 +125,11 @@ public class IrcConfiguration implements Cloneable {
      * Return space separated list of channel names without pwd
      */
     public String getListOfChannels() {
-        String retval = "";
+        StringBuilder retval = new StringBuilder();
         for (IrcChannel channel : channels) {
-            retval += (retval.isEmpty() ? "" : " ") + channel.getName();
+            retval.append(retval.length() == 0 ? "" : " ").append(channel.getName());
         }
-        return retval;
+        return retval.toString();
     }
 
     public void configure(String uriStr) throws URISyntaxException, UnsupportedEncodingException  {
@@ -448,7 +448,7 @@ public class IrcConfiguration implements Cloneable {
     public void setSslContextParameters(SSLContextParameters sslContextParameters) {
         this.sslContextParameters = sslContextParameters;
     }
-    
+
     /**
      * Your IRC server nickname password.
      */

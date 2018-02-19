@@ -33,7 +33,7 @@ import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.ObjectHelper;
 
 /**
- * YAML data format
+ * YAML is a data format to marshal and unmarshal Java objects to and from YAML.
  *
  * @version 
  */
@@ -86,9 +86,9 @@ public class YAMLDataFormat extends DataFormatDefinition {
     }
 
     /**
-     * Which yaml library to use such.
+     * Which yaml library to use.
      * <p/>
-     * Is by default SnakeYAML
+     * By default it is SnakeYAML
      */
     public void setLibrary(YAMLLibrary library) {
         this.library = library;

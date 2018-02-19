@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class TestSupport extends TestCase {
 
-    protected static final String LS = System.getProperty("line.separator");
+    protected static final String LS = System.lineSeparator();
     private static final Logger LOG = LoggerFactory.getLogger(TestSupport.class);
 
     protected Logger log = LoggerFactory.getLogger(getClass());
@@ -74,7 +74,7 @@ public abstract class TestSupport extends TestCase {
 
     /**
      * Returns a value builder for the given exchange property
-     * 
+     *
      * @deprecated use {@link #exchangeProperty(String)}
      */
     @Deprecated
@@ -107,7 +107,7 @@ public abstract class TestSupport extends TestCase {
     /**
      * Returns a predicate and value builder for the outbound body on an
      * exchange
-     * 
+     *
      * @deprecated use {@link #body()}
      */
     @Deprecated
@@ -118,7 +118,7 @@ public abstract class TestSupport extends TestCase {
     /**
      * Returns a predicate and value builder for the outbound message body as a
      * specific type
-     * 
+     *
      * @deprecated use {@link #bodyAs(Class)}
      */
     @Deprecated
@@ -137,7 +137,7 @@ public abstract class TestSupport extends TestCase {
     /**
      * Returns a predicate and value builder for the fault message body as a
      * specific type
-     * 
+     *
      * @deprecated use {@link #bodyAs(Class)}
      */
     @Deprecated
@@ -207,7 +207,7 @@ public abstract class TestSupport extends TestCase {
         }
         assertEquals("in body of: " + exchange, expected, actual);
 
-        LOG.debug("Received response: " + exchange + " with in: " + exchange.getIn());
+        LOG.debug("Received response: {} with in: {}", exchange, exchange.getIn());
     }
 
     /**
@@ -229,7 +229,7 @@ public abstract class TestSupport extends TestCase {
         }
         assertEquals("output body of: " + exchange, expected, actual);
 
-        LOG.debug("Received response: " + exchange + " with out: " + exchange.getOut());
+        LOG.debug("Received response: {} with out: {}", exchange, exchange.getOut());
     }
 
     public static Object assertMessageHeader(Message message, String name, Object expected) {
@@ -255,7 +255,7 @@ public abstract class TestSupport extends TestCase {
             value = expression.evaluate(exchange, Object.class);
         }
 
-        LOG.debug("Evaluated expression: " + expression + " on exchange: " + exchange + " result: " + value);
+        LOG.debug("Evaluated expression: {} on exchange: {} result: {}", expression, exchange, value);
 
         assertEquals("Expression: " + expression + " on Exchange: " + exchange, expected, value);
         return value;
@@ -289,7 +289,7 @@ public abstract class TestSupport extends TestCase {
         }
         boolean value = predicate.matches(exchange);
 
-        LOG.debug("Evaluated predicate: " + predicate + " on exchange: " + exchange + " result: " + value);
+        LOG.debug("Evaluated predicate: {} on exchange: {} result: {}", predicate, exchange, value);
 
         assertEquals("Predicate: " + predicate + " on Exchange: " + exchange, expected, value);
         return value;
@@ -530,7 +530,7 @@ public abstract class TestSupport extends TestCase {
      * <p/>
      * Uses <tt>java.version</tt> from the system properties to determine the version.
      *
-     * @param version such as 1.6 or 6 
+     * @param version such as 1.6 or 6
      * @return <tt>true</tt> if its that vendor.
      */
     public static boolean isJavaVersion(String version) {
@@ -554,6 +554,30 @@ public abstract class TestSupport extends TestCase {
             return Integer.parseInt(javaSpecVersion.split("\\.")[1]);
         } else {
             return Integer.parseInt(javaSpecVersion);
+        }
+    }
+
+    /**
+     * Used for registering a sysetem property.
+     * <p/>
+     * if the property already contains the passed value nothing will happen.
+     * If the system property has already a value, the passed value will be appended separated by <tt>separator</tt>
+     *
+     * @param sysPropertyName   the name of the system property to be set
+     * @param sysPropertyValue  the value to be set for the system property passed as sysPropertyName
+     * @param separator         the property separator to be used to append sysPropertyValue
+     *
+     */
+    public static void registerSystemProperty(String sysPropertyName, String sysPropertyValue, String separator) {
+        synchronized (System.getProperties()) {
+            if (System.getProperties().contains(sysPropertyName)) {
+                String current = System.getProperty(sysPropertyName);
+                if (!current.contains(sysPropertyValue)) {
+                    System.setProperty(sysPropertyName, current + separator + sysPropertyValue);
+                }
+            } else {
+                System.setProperty(sysPropertyName, sysPropertyValue);
+            }
         }
     }
 }

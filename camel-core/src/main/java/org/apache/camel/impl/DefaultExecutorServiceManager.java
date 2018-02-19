@@ -116,7 +116,7 @@ public class DefaultExecutorServiceManager extends ServiceSupport implements Exe
         threadPoolProfiles.remove(defaultThreadPoolProfileId);
         defaultThreadPoolProfile.addDefaults(defaultProfile);
 
-        LOG.info("Using custom DefaultThreadPoolProfile: " + defaultThreadPoolProfile);
+        LOG.info("Using custom DefaultThreadPoolProfile: {}", defaultThreadPoolProfile);
 
         this.defaultThreadPoolProfileId = defaultThreadPoolProfile.getId();
         defaultThreadPoolProfile.setDefaultProfile(true);
@@ -241,7 +241,7 @@ public class DefaultExecutorServiceManager extends ServiceSupport implements Exe
         onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Created new ScheduledThreadPool for source: {} with name: {}. -> {}", source, sanitizedName, answer);
+            LOG.debug("Created new ScheduledThreadPool for source: {} with name: {} -> {}", source, sanitizedName, answer);
         }
         return answer;
     }

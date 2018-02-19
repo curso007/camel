@@ -296,7 +296,7 @@ public class RouteDefinition extends ProcessorDefinition<RouteDefinition> {
         camelContext.getRouteDefinitions().add(0, merged);
 
         // log the merged route at info level to make it easier to end users to spot any mistakes they may have made
-        log.info("AdviceWith route after: " + merged);
+        log.info("AdviceWith route after: {}", merged);
 
         // If the camel context is started then we start the route
         if (camelContext instanceof StatefulService) {
@@ -1301,6 +1301,19 @@ public class RouteDefinition extends ProcessorDefinition<RouteDefinition> {
 
         routeContext.commit();
         return routeContext;
+    }
+
+
+    // ****************************
+    // Static helpers
+    // ****************************
+
+    public static RouteDefinition fromUri(String uri) {
+        return new RouteDefinition().from(uri);
+    }
+
+    public static RouteDefinition fromEndpoint(Endpoint endpoint) {
+        return new RouteDefinition().from(endpoint);
     }
 
 }

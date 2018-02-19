@@ -38,6 +38,7 @@ public class DataFormatsDefinition {
 
     // cannot use @XmlElementRef as it doesn't allow optional properties
     @XmlElements({
+        @XmlElement(required = false, name = "asn1", type = ASN1DataFormat.class),
         @XmlElement(required = false, name = "avro", type = AvroDataFormat.class),
         @XmlElement(required = false, name = "barcode", type = BarcodeDataFormat.class),
         @XmlElement(required = false, name = "base64", type = Base64DataFormat.class),
@@ -49,6 +50,8 @@ public class DataFormatsDefinition {
         @XmlElement(required = false, name = "csv", type = CsvDataFormat.class),
         // TODO: Camel 3.0 - Should be named customDataFormat to avoid naming clash with custom loadbalancer
         @XmlElement(required = false, name = "custom", type = CustomDataFormat.class),
+        @XmlElement(required = false, name = "fhirJson", type = FhirJsonDataFormat.class),
+        @XmlElement(required = false, name = "fhirXml", type = FhirXmlDataFormat.class),
         @XmlElement(required = false, name = "flatpack", type = FlatpackDataFormat.class),
         @XmlElement(required = false, name = "gzip", type = GzipDataFormat.class),
         @XmlElement(required = false, name = "hessian", type = HessianDataFormat.class),
@@ -68,6 +71,7 @@ public class DataFormatsDefinition {
         @XmlElement(required = false, name = "string", type = StringDataFormat.class),
         @XmlElement(required = false, name = "syslog", type = SyslogDataFormat.class),
         @XmlElement(required = false, name = "tarfile", type = TarFileDataFormat.class),
+        @XmlElement(required = false, name = "thrift", type = ThriftDataFormat.class),
         @XmlElement(required = false, name = "tidyMarkup", type = TidyMarkupDataFormat.class),
         @XmlElement(required = false, name = "univocity-csv", type = UniVocityCsvDataFormat.class),
         @XmlElement(required = false, name = "univocity-fixed", type = UniVocityFixedWidthDataFormat.class),

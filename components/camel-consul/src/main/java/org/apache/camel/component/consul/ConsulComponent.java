@@ -21,17 +21,18 @@ import java.util.Optional;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
-import org.apache.camel.component.consul.enpoint.ConsulAgentProducer;
-import org.apache.camel.component.consul.enpoint.ConsulCatalogProducer;
-import org.apache.camel.component.consul.enpoint.ConsulCoordinatesProducer;
-import org.apache.camel.component.consul.enpoint.ConsulEventConsumer;
-import org.apache.camel.component.consul.enpoint.ConsulEventProducer;
-import org.apache.camel.component.consul.enpoint.ConsulHealthProducer;
-import org.apache.camel.component.consul.enpoint.ConsulKeyValueConsumer;
-import org.apache.camel.component.consul.enpoint.ConsulKeyValueProducer;
-import org.apache.camel.component.consul.enpoint.ConsulPreparedQueryProducer;
-import org.apache.camel.component.consul.enpoint.ConsulSessionProducer;
-import org.apache.camel.component.consul.enpoint.ConsulStatusProducer;
+import org.apache.camel.SSLContextParametersAware;
+import org.apache.camel.component.consul.endpoint.ConsulAgentProducer;
+import org.apache.camel.component.consul.endpoint.ConsulCatalogProducer;
+import org.apache.camel.component.consul.endpoint.ConsulCoordinatesProducer;
+import org.apache.camel.component.consul.endpoint.ConsulEventConsumer;
+import org.apache.camel.component.consul.endpoint.ConsulEventProducer;
+import org.apache.camel.component.consul.endpoint.ConsulHealthProducer;
+import org.apache.camel.component.consul.endpoint.ConsulKeyValueConsumer;
+import org.apache.camel.component.consul.endpoint.ConsulKeyValueProducer;
+import org.apache.camel.component.consul.endpoint.ConsulPreparedQueryProducer;
+import org.apache.camel.component.consul.endpoint.ConsulSessionProducer;
+import org.apache.camel.component.consul.endpoint.ConsulStatusProducer;
 import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.util.jsse.SSLContextParameters;
@@ -39,10 +40,12 @@ import org.apache.camel.util.jsse.SSLContextParameters;
 /**
  * Represents the component that manages {@link ConsulEndpoint}.
  */
-public class ConsulComponent extends DefaultComponent {
+public class ConsulComponent extends DefaultComponent implements SSLContextParametersAware {
 
     @Metadata(label = "advanced")
     private ConsulConfiguration configuration = new ConsulConfiguration();
+    @Metadata(label = "security", defaultValue = "false")
+    private boolean useGlobalSslContextParameters;
     
     public ConsulComponent() {
         super();
@@ -91,6 +94,19 @@ public class ConsulComponent extends DefaultComponent {
      */
     public void setSslContextParameters(SSLContextParameters sslContextParameters) {
         configuration.setSslContextParameters(sslContextParameters);
+    }
+
+    @Override
+    public boolean isUseGlobalSslContextParameters() {
+        return this.useGlobalSslContextParameters;
+    }
+
+    /**
+     * Enable usage of global SSL context parameters.
+     */
+    @Override
+    public void setUseGlobalSslContextParameters(boolean useGlobalSslContextParameters) {
+        this.useGlobalSslContextParameters = useGlobalSslContextParameters;
     }
 
     public String getAclToken() {
@@ -144,7 +160,11 @@ public class ConsulComponent extends DefaultComponent {
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         ConsulConfiguration configuration = Optional.ofNullable(this.configuration).orElseGet(ConsulConfiguration::new).copy();
-        configuration.setCamelContext(getCamelContext());
+
+        // using global ssl context parameters if set
+        if (configuration.getSslContextParameters() == null) {
+            configuration.setSslContextParameters(retrieveGlobalSslContextParameters());
+        }
 
         setProperties(configuration, parameters);
 

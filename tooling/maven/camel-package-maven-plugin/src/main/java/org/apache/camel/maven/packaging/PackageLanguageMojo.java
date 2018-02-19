@@ -144,10 +144,13 @@ public class PackageLanguageMojo extends AbstractMojo {
             }
         }
 
-        // find camel-core and grab the data format model from there, and enrich this model with information from this artifact
-        // and create json schema model file for this data format
+        // is this from Apache Camel then the data format is out of the box and we should enrich the json schema with more details
+        boolean apacheCamel = "org.apache.camel".equals(project.getGroupId());
+
+        // find camel-core and grab the language model from there, and enrich this model with information from this artifact
+        // and create json schema model file for this language
         try {
-            if (count > 0) {
+            if (apacheCamel && count > 0) {
                 Artifact camelCore = findCamelCoreArtifact(project);
                 if (camelCore != null) {
                     File core = camelCore.getFile();
@@ -194,6 +197,9 @@ public class PackageLanguageMojo extends AbstractMojo {
                                 if (row.containsKey("deprecated")) {
                                     languageModel.setDeprecated(row.get("deprecated"));
                                 }
+                                if (row.containsKey("deprecationNote")) {
+                                    languageModel.setDeprecationNote(row.get("deprecationNote"));
+                                }
                                 if (row.containsKey("javaType")) {
                                     languageModel.setModelJavaType(row.get("javaType"));
                                 }
@@ -218,8 +224,9 @@ public class PackageLanguageMojo extends AbstractMojo {
                             fos.close();
 
                             buildContext.refresh(out);
-
-                            log.debug("Generated " + out + " containing JSon schema for " + name + " language");
+                            if (log.isDebugEnabled()) {
+                                log.debug("Generated " + out + " containing JSon schema for " + name + " language");
+                            }
                         }
                     }
                 }
@@ -400,6 +407,7 @@ public class PackageLanguageMojo extends AbstractMojo {
         private String firstVersion;
         private String label;
         private String deprecated;
+        private String deprecationNote;
         private String javaType;
         private String modelJavaType;
         private String groupId;
@@ -468,6 +476,14 @@ public class PackageLanguageMojo extends AbstractMojo {
 
         public void setDeprecated(String deprecated) {
             this.deprecated = deprecated;
+        }
+
+        public String getDeprecationNote() {
+            return deprecationNote;
+        }
+
+        public void setDeprecationNote(String deprecationNote) {
+            this.deprecationNote = deprecationNote;
         }
 
         public String getJavaType() {

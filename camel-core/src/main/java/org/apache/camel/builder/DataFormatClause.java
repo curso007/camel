@@ -24,6 +24,7 @@ import org.w3c.dom.Node;
 
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.model.ProcessorDefinition;
+import org.apache.camel.model.dataformat.ASN1DataFormat;
 import org.apache.camel.model.dataformat.AvroDataFormat;
 import org.apache.camel.model.dataformat.Base64DataFormat;
 import org.apache.camel.model.dataformat.BeanioDataFormat;
@@ -33,6 +34,8 @@ import org.apache.camel.model.dataformat.BoonDataFormat;
 import org.apache.camel.model.dataformat.CastorDataFormat;
 import org.apache.camel.model.dataformat.CsvDataFormat;
 import org.apache.camel.model.dataformat.CustomDataFormat;
+import org.apache.camel.model.dataformat.FhirJsonDataFormat;
+import org.apache.camel.model.dataformat.FhirXmlDataFormat;
 import org.apache.camel.model.dataformat.GzipDataFormat;
 import org.apache.camel.model.dataformat.HL7DataFormat;
 import org.apache.camel.model.dataformat.HessianDataFormat;
@@ -52,6 +55,7 @@ import org.apache.camel.model.dataformat.SoapJaxbDataFormat;
 import org.apache.camel.model.dataformat.StringDataFormat;
 import org.apache.camel.model.dataformat.SyslogDataFormat;
 import org.apache.camel.model.dataformat.TarFileDataFormat;
+import org.apache.camel.model.dataformat.ThriftDataFormat;
 import org.apache.camel.model.dataformat.TidyMarkupDataFormat;
 import org.apache.camel.model.dataformat.XMLBeansDataFormat;
 import org.apache.camel.model.dataformat.XMLSecurityDataFormat;
@@ -714,9 +718,20 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
         dataFormat.setDefaultInstance(defaultInstance);
         return dataFormat(dataFormat);
     }
+    
+    public T protobuf(Object defaultInstance, String contentTypeFormat) {
+        ProtobufDataFormat dataFormat = new ProtobufDataFormat();
+        dataFormat.setDefaultInstance(defaultInstance);
+        dataFormat.setContentTypeFormat(contentTypeFormat);
+        return dataFormat(dataFormat);
+    }
 
     public T protobuf(String instanceClassName) {
         return dataFormat(new ProtobufDataFormat(instanceClassName));
+    }
+    
+    public T protobuf(String instanceClassName, String contentTypeFormat) {
+        return dataFormat(new ProtobufDataFormat(instanceClassName, contentTypeFormat));
     }
 
     /**
@@ -818,6 +833,34 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
      */
     public T syslog() {
         return dataFormat(new SyslogDataFormat());
+    }
+    
+    /**
+     * Uses the Thrift data format
+     */
+    public T thrift() {
+        return dataFormat(new ThriftDataFormat());
+    }
+
+    public T thrift(Object defaultInstance) {
+        ThriftDataFormat dataFormat = new ThriftDataFormat();
+        dataFormat.setDefaultInstance(defaultInstance);
+        return dataFormat(dataFormat);
+    }
+    
+    public T thrift(Object defaultInstance, String contentTypeFormat) {
+        ThriftDataFormat dataFormat = new ThriftDataFormat();
+        dataFormat.setDefaultInstance(defaultInstance);
+        dataFormat.setContentTypeFormat(contentTypeFormat);
+        return dataFormat(dataFormat);
+    }
+
+    public T thrift(String instanceClassName) {
+        return dataFormat(new ThriftDataFormat(instanceClassName));
+    }
+    
+    public T thrift(String instanceClassName, String contentTypeFormat) {
+        return dataFormat(new ThriftDataFormat(instanceClassName, contentTypeFormat));
     }
 
     /**
@@ -1089,6 +1132,7 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     /**
      * Uses the xmljson dataformat, based on json-lib
      */
+    @Deprecated
     public T xmljson() {
         return dataFormat(new XmlJsonDataFormat());
     }
@@ -1096,6 +1140,7 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     /**
      * Uses the xmljson dataformat, based on json-lib, initializing custom options with a Map
      */
+    @Deprecated
     public T xmljson(Map<String, String> options) {
         return dataFormat(new XmlJsonDataFormat(options));
     }
@@ -1122,6 +1167,50 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     public T zipFile() {
         ZipFileDataFormat zfdf = new ZipFileDataFormat();
         return dataFormat(zfdf);
+    }
+    
+    /**
+     * Uses the ASN.1 file data format
+     */
+    public T asn1() {
+        ASN1DataFormat asn1Df = new ASN1DataFormat();
+        return dataFormat(asn1Df);
+    }
+    
+    public T asn1(String clazzName) {
+        return dataFormat(new ASN1DataFormat(clazzName));
+    }
+    
+    public T asn1(Boolean usingIterator) {
+        return dataFormat(new ASN1DataFormat(usingIterator));
+    }
+
+    /**
+     * Uses the FHIR JSON data format
+     */
+    public T fhirJson() {
+        FhirJsonDataFormat jsonDataFormat = new FhirJsonDataFormat();
+        return dataFormat(jsonDataFormat);
+    }
+
+    public T fhirJson(String version) {
+        FhirJsonDataFormat jsonDataFormat = new FhirJsonDataFormat();
+        jsonDataFormat.setFhirVersion(version);
+        return dataFormat(jsonDataFormat);
+    }
+
+    /**
+     * Uses the FHIR XML data format
+     */
+    public T fhirXml() {
+        FhirXmlDataFormat fhirXmlDataFormat = new FhirXmlDataFormat();
+        return dataFormat(fhirXmlDataFormat);
+    }
+
+    public T fhirXml(String version) {
+        FhirXmlDataFormat fhirXmlDataFormat = new FhirXmlDataFormat();
+        fhirXmlDataFormat.setFhirVersion(version);
+        return dataFormat(fhirXmlDataFormat);
     }
 
     @SuppressWarnings("unchecked")

@@ -61,7 +61,7 @@ public class BindyRecordFieldStartingWithSeperatorCharTest extends CamelTestSupp
         assertEquals(BigDecimal.valueOf(3), row.getNumber());
 
         row = mockEndPoint.getExchanges().get(3).getIn().getBody(BindyCsvRowFormat.class);
-        assertEquals(null, row.getFirstField());
+        assertEquals("", row.getFirstField());
         assertEquals(",val2,", row.getSecondField());
         assertEquals(BigDecimal.valueOf(4), row.getNumber());
     }
@@ -72,13 +72,14 @@ public class BindyRecordFieldStartingWithSeperatorCharTest extends CamelTestSupp
             @Override
             public void configure() throws Exception {
                 BindyCsvDataFormat camelDataFormat =
-                  new BindyCsvDataFormat(BindyCsvRowFormat.class);
+                    new BindyCsvDataFormat(BindyCsvRowFormat.class);
                 from("direct:start").unmarshal(camelDataFormat).to("mock:result");
             }
         };
     }
 
     //from https://issues.apache.org/jira/browse/CAMEL-11065
+    @SuppressWarnings("serial")
     @CsvRecord(separator = ",", quote = "'")
     public static class BindyCsvRowFormat implements Serializable {
 

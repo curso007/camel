@@ -88,7 +88,7 @@ public class AbstractRestProcessorApprovalTest {
 
         @Override
         protected void processResponse(final Exchange exchange, final InputStream responseEntity,
-                final SalesforceException ex, final AsyncCallback callback) {
+                final Map<String, String> headers, final SalesforceException ex, final AsyncCallback callback) {
         }
     }
 
@@ -254,7 +254,7 @@ public class AbstractRestProcessorApprovalTest {
         final CamelContext context = new DefaultCamelContext();
         final Exchange exchange = new DefaultExchange(context);
 
-        final Message message = new DefaultMessage();
+        final Message message = new DefaultMessage(context);
         if (headers != null) {
             message.setHeaders(headers);
         }

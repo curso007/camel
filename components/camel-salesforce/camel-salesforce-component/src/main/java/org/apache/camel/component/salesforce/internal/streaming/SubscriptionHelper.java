@@ -125,7 +125,6 @@ public class SubscriptionHelper extends ServiceSupport {
                         handshakeError = (String) message.get(ERROR_FIELD);
                         handshakeException = getFailure(message);
 
-
                         if (handshakeError != null) {
                             // refresh oauth token, if it's a 401 error
                             if (handshakeError.startsWith("401::")) {
@@ -134,7 +133,15 @@ public class SubscriptionHelper extends ServiceSupport {
                                     session.login(session.getAccessToken());
                                     LOG.info("Refreshed OAuth token for re-handshake");
                                 } catch (SalesforceException e) {
-                                    LOG.error("Error renewing OAuth token on 401 error: " + e.getMessage(), e);
+                                    LOG.warn("Error renewing OAuth token on 401 error: " + e.getMessage(), e);
+                                }
+                            }
+                            if (handshakeError.startsWith("403::")) {
+                                try {
+                                    LOG.info("Cleaning session (logout) from SalesforceSession before restarting client");
+                                    session.logout();
+                                } catch (SalesforceException e) {
+                                    LOG.warn("Error while cleaning session: " + e.getMessage(), e);
                                 }
                             }
                         }
@@ -326,8 +333,11 @@ public class SubscriptionHelper extends ServiceSupport {
         // use default Jetty client from SalesforceComponent, its shared by all consumers
         final SalesforceHttpClient httpClient = component.getConfig().getHttpClient();
 
-        Map<String, Object> options = new HashMap<String, Object>();
+        Map<String, Object> options = new HashMap<>();
         options.put(ClientTransport.MAX_NETWORK_DELAY_OPTION, httpClient.getTimeout());
+        if (component.getLongPollingTransportProperties() != null) {
+            options = component.getLongPollingTransportProperties();
+        }
 
         final SalesforceSession session = component.getSession();
         // check login access token

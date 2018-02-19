@@ -24,13 +24,14 @@ import java.util.List;
 import java.util.Queue;
 import java.util.regex.Pattern;
 
-import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.ShutdownRunningTask;
 import org.apache.camel.impl.ScheduledBatchPollingConsumer;
+import org.apache.camel.support.EmptyAsyncCallback;
 import org.apache.camel.util.CastUtils;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StopWatch;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.util.TimeUtils;
@@ -92,7 +93,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
     /**
      * Poll for files
      */
-    protected int poll() throws Exception {
+    public int poll() throws Exception {
         // must prepare on startup the very first time
         if (!prepareOnStartup) {
             // prepare on startup
@@ -124,12 +125,12 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
         } catch (Exception e) {
             // during poll directory we add files to the in progress repository, in case of any exception thrown after this work
             // we must then drain the in progress files before rethrowing the exception
-            log.debug("Error occurred during poll directory: " + name + " due " + e.getMessage() + ". Removing " + files.size() + " files marked as in-progress.");
+            log.debug("Error occurred during poll directory: {} due {}. Removing {} files marked as in-progress.", name, e.getMessage(), files.size());
             removeExcessiveInProgressFiles(files);
             throw e;
         }
 
-        long delta = stop.stop();
+        long delta = stop.taken();
         if (log.isDebugEnabled()) {
             log.debug("Took {} to poll: {}", TimeUtils.printDuration(delta), name);
         }
@@ -405,7 +406,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
                 boolean retrieved;
                 Exception cause = null;
                 try {
-                    retrieved = operations.retrieveFile(name, exchange);
+                    retrieved = operations.retrieveFile(name, exchange, target.getFileLength());
                 } catch (Exception e) {
                     retrieved = false;
                     cause = e;
@@ -421,7 +422,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
                         // throw exception to handle the problem with retrieving the file
                         // then if the method return false or throws an exception is handled the same in here
                         // as in both cases an exception is being thrown
-                        if (cause != null && cause instanceof GenericFileOperationFailedException) {
+                        if (cause instanceof GenericFileOperationFailedException) {
                             throw cause;
                         } else {
                             throw new GenericFileOperationFailedException("Cannot retrieve file: " + file + " from: " + endpoint, cause);
@@ -448,14 +449,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
                 // process the exchange using the async consumer to support async routing engine
                 // which can be supported by this file consumer as all the done work is
                 // provided in the GenericFileOnCompletion
-                getAsyncProcessor().process(exchange, new AsyncCallback() {
-                    public void done(boolean doneSync) {
-                        // noop
-                        if (log.isTraceEnabled()) {
-                            log.trace("Done processing file: {} {}", target, doneSync ? "synchronously" : "asynchronously");
-                        }
-                    }
-                });
+                getAsyncProcessor().process(exchange, EmptyAsyncCallback.get());
             }
 
         } catch (Exception e) {
@@ -704,6 +698,9 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
             // create a dummy exchange as Exchange is needed for expression evaluation
             Exchange dummy = endpoint.createExchange();
             fileExpressionResult = endpoint.getFileName().evaluate(dummy, String.class);
+            if (dummy.getException() != null) {
+                throw ObjectHelper.wrapRuntimeCamelException(dummy.getException());
+            }
         }
         return fileExpressionResult;
     }
@@ -723,4 +720,21 @@ public abstract class GenericFileConsumer<T> extends ScheduledBatchPollingConsum
         prepareOnStartup = false;
         super.doStop();
     }
+
+    @Override
+    public void onInit() throws Exception {
+        // noop as we do a manual on-demand poll with GenericFilePolllingConsumer
+    }
+
+    @Override
+    public long beforePoll(long timeout) throws Exception {
+        // noop as we do a manual on-demand poll with GenericFilePolllingConsumer
+        return timeout;
+    }
+
+    @Override
+    public void afterPoll() throws Exception {
+        // noop as we do a manual on-demand poll with GenericFilePolllingConsumer
+    }
+
 }

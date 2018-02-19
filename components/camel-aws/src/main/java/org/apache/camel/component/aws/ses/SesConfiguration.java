@@ -21,24 +21,23 @@ import java.util.List;
 
 import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
 
+import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
 import org.apache.camel.spi.UriPath;
 
 @UriParams
-public class SesConfiguration {
+public class SesConfiguration implements Cloneable {
 
     @UriPath @Metadata(required = "true")
     private String from;
     @UriParam
     private AmazonSimpleEmailService amazonSESClient;
-    @UriParam
+    @UriParam(label = "security", secret = true)
     private String accessKey;
-    @UriParam
+    @UriParam(label = "security", secret = true)
     private String secretKey;
-    @UriParam
-    private String amazonSESEndpoint;
     @UriParam
     private String subject;
     @UriParam
@@ -51,6 +50,8 @@ public class SesConfiguration {
     private String proxyHost;
     @UriParam
     private Integer proxyPort;
+    @UriParam
+    private String region;
 
     public String getAccessKey() {
         return accessKey;
@@ -151,19 +152,8 @@ public class SesConfiguration {
         this.replyToAddresses = Arrays.asList(replyToAddresses.split(","));
     }
     
-    public String getAmazonSESEndpoint() {
-        return amazonSESEndpoint;
-    }
-
     /**
-     * The region with which the AWS-SES client wants to work with.
-     */
-    public void setAmazonSESEndpoint(String amazonSesEndpoint) {
-        this.amazonSESEndpoint = amazonSesEndpoint;
-    }
-    
-    /**
-     * To define a proxy host when instantiating the SQS client
+     * To define a proxy host when instantiating the SES client
      */
     public String getProxyHost() {
         return proxyHost;
@@ -174,7 +164,7 @@ public class SesConfiguration {
     }
 
     /**
-     * To define a proxy port when instantiating the SQS client
+     * To define a proxy port when instantiating the SES client
      */
     public Integer getProxyPort() {
         return proxyPort;
@@ -183,21 +173,27 @@ public class SesConfiguration {
     public void setProxyPort(Integer proxyPort) {
         this.proxyPort = proxyPort;
     }
+    
+    /**
+     * The region in which SES client needs to work
+     */
+    public String getRegion() {
+        return region;
+    }
 
-    @Override
-    public String toString() {
-        return "SesConfiguration{"
-                + "accessKey='" + accessKey + '\''
-                + ", amazonSESClient=" + amazonSESClient
-                + ", secretKey=xxxxxxxxxxxxxxx"
-                + ", amazonSesEndpoint='" + amazonSESEndpoint + '\''
-                + ", subject='" + subject + '\''
-                + ", from='" + from + '\''
-                + ", to='" + to + '\''
-                + ", returnPath='" + returnPath + '\''
-                + ", replyToAddresses='" + replyToAddresses + '\''
-                + ", proxyHost=" + proxyHost
-                + ", proxyPort=" + proxyPort
-                + '}';
+    public void setRegion(String region) {
+        this.region = region;
+    }
+    
+    // *************************************************
+    //
+    // *************************************************
+
+    public SesConfiguration copy() {
+        try {
+            return (SesConfiguration)super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeCamelException(e);
+        }
     }
 }

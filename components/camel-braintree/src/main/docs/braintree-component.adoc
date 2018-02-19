@@ -1,4 +1,5 @@
-## Braintree Component
+[[braintree-component]]
+== Braintree Component
 
 *Available as of Camel version 2.17*
 
@@ -40,11 +41,11 @@ The Braintree component supports 2 options which are listed below.
 
 
 [width="100%",cols="2,5,^1,2",options="header"]
-|=======================================================================
+|===
 | Name | Description | Default | Type
-| **configuration** (common) | To use the shared configuration |  | BraintreeConfiguration
-| **resolveProperty Placeholders** (advanced) | Whether the component should resolve property placeholders on itself when starting. Only properties which are of String type can use property placeholders. | true | boolean
-|=======================================================================
+| *configuration* (common) | To use the shared configuration |  | BraintreeConfiguration
+| *resolveProperty Placeholders* (advanced) | Whether the component should resolve property placeholders on itself when starting. Only properties which are of String type can use property placeholders. | true | boolean
+|===
 // component options: END
 
 
@@ -54,38 +55,41 @@ The Braintree component supports 2 options which are listed below.
 // endpoint options: START
 The Braintree endpoint is configured using URI syntax:
 
-    braintree:apiName/methodName
+----
+braintree:apiName/methodName
+----
 
 with the following path and query parameters:
 
-#### Path Parameters (2 parameters):
+==== Path Parameters (2 parameters):
 
 [width="100%",cols="2,5,^1,2",options="header"]
-|=======================================================================
+|===
 | Name | Description | Default | Type
-| **apiName** | *Required* What kind of operation to perform |  | BraintreeApiName
-| **methodName** | What sub operation to use for the selected operation |  | String
-|=======================================================================
+| *apiName* | *Required* What kind of operation to perform |  | BraintreeApiName
+| *methodName* | What sub operation to use for the selected operation |  | String
+|===
 
-#### Query Parameters (13 parameters):
+==== Query Parameters (14 parameters):
 
 [width="100%",cols="2,5,^1,2",options="header"]
-|=======================================================================
+|===
 | Name | Description | Default | Type
-| **environment** (common) | *Required* The environment Either SANDBOX or PRODUCTION |  | String
-| **inBody** (common) | Sets the name of a parameter to be passed in the exchange In Body |  | String
-| **merchantId** (common) | *Required* The merchant id provided by Braintree. |  | String
-| **privateKey** (common) | *Required* The private key provided by Braintree. |  | String
-| **publicKey** (common) | *Required* The public key provided by Braintree. |  | String
-| **bridgeErrorHandler** (consumer) | Allows for bridging the consumer to the Camel routing Error Handler which mean any exceptions occurred while the consumer is trying to pickup incoming messages or the likes will now be processed as a message and handled by the routing Error Handler. By default the consumer will use the org.apache.camel.spi.ExceptionHandler to deal with exceptions that will be logged at WARN or ERROR level and ignored. | false | boolean
-| **exceptionHandler** (consumer) | To let the consumer use a custom ExceptionHandler. Notice if the option bridgeErrorHandler is enabled then this options is not in use. By default the consumer will deal with exceptions that will be logged at WARN or ERROR level and ignored. |  | ExceptionHandler
-| **exchangePattern** (consumer) | Sets the exchange pattern when the consumer creates an exchange. |  | ExchangePattern
-| **httpReadTimeout** (advanced) | Set read timeout for http calls. |  | Integer
-| **synchronous** (advanced) | Sets whether synchronous processing should be strictly used or Camel is allowed to use asynchronous processing (if supported). | false | boolean
-| **httpLogLevel** (logging) | Set logging level for http calls see java.util.logging.Level |  | String
-| **proxyHost** (proxy) | The proxy host |  | String
-| **proxyPort** (proxy) | The proxy port |  | Integer
-|=======================================================================
+| *environment* (common) | The environment Either SANDBOX or PRODUCTION |  | String
+| *inBody* (common) | Sets the name of a parameter to be passed in the exchange In Body |  | String
+| *merchantId* (common) | The merchant id provided by Braintree. |  | String
+| *privateKey* (common) | The private key provided by Braintree. |  | String
+| *publicKey* (common) | The public key provided by Braintree. |  | String
+| *bridgeErrorHandler* (consumer) | Allows for bridging the consumer to the Camel routing Error Handler, which mean any exceptions occurred while the consumer is trying to pickup incoming messages, or the likes, will now be processed as a message and handled by the routing Error Handler. By default the consumer will use the org.apache.camel.spi.ExceptionHandler to deal with exceptions, that will be logged at WARN or ERROR level and ignored. | false | boolean
+| *exceptionHandler* (consumer) | To let the consumer use a custom ExceptionHandler. Notice if the option bridgeErrorHandler is enabled then this options is not in use. By default the consumer will deal with exceptions, that will be logged at WARN or ERROR level and ignored. |  | ExceptionHandler
+| *exchangePattern* (consumer) | Sets the exchange pattern when the consumer creates an exchange. |  | ExchangePattern
+| *accessToken* (advanced) | The access token granted by a merchant to another in order to process transactions on their behalf. Used in place of environment, merchant id, public key and private key fields. |  | String
+| *httpReadTimeout* (advanced) | Set read timeout for http calls. |  | Integer
+| *synchronous* (advanced) | Sets whether synchronous processing should be strictly used, or Camel is allowed to use asynchronous processing (if supported). | false | boolean
+| *httpLogLevel* (logging) | Set logging level for http calls, see java.util.logging.Level |  | String
+| *proxyHost* (proxy) | The proxy host |  | String
+| *proxyPort* (proxy) | The proxy port |  | Integer
+|===
 // endpoint options: END
 
 
@@ -129,16 +133,20 @@ type *org.apache.camel.component.braintree.BraintreeConfiguration*.
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Option |Type |Description
-|environment |String |value that specifies where requests should be
+|environment |String |Value that specifies where requests should be
 directed – sandbox or production
 
-|merchantId |String |a unique identifier for your gateway account, which
+|merchantId |String |A unique identifier for your gateway account, which
 is different than your merchant account ID
 
-|publicKey |String |user-specific public identifier
+|publicKey |String |User-specific public identifier
 
-|privateKey |String |user-specific secure identifier that should not be
+|privateKey |String |User-specific secure identifier that should not be
 shared – even with us!
+
+|accessToken |String |Token granted to a merchant using Braintree Auth
+allowing them to process transactions on another's behalf. Used in place
+of the environment, merchantId, publicKey and privateKey options.
 |=======================================================================
 
 All the options above are provided by Braintree Payments
@@ -364,6 +372,9 @@ braintree://merchantAccount/endpoint?[options]
 |create |  |request
 |com.braintreegateway.Result<com.braintreegateway.MerchantAccount>
 
+|createForCurrency |  |currencyRequest
+|com.braintreegateway.Result<com.braintreegateway.MerchantAccount>
+
 |find |  |id |com.braintreegateway.MerchantAccount
 
 |update |  |id, request
@@ -378,6 +389,7 @@ URI Options for _merchantAccount_
 |Name |Type
 |id |String
 |request |com.braintreegateway.MerchantAccountRequest
+|currencyRequest |com.braintreegateway.MerchantAccountCreateForCurrencyRequest
 |====================================================
 
 #### Endpoint prefix _paymentMethod_
@@ -398,7 +410,7 @@ braintree://paymentMethod/endpoint?[options]
 |create |  |request
 |com.braintreegateway.Result<com.braintreegateway.PaymentMethod>
 
-|delete |  |token
+|delete |  |token, deleteRequest
 |com.braintreegateway.Result<com.braintreegateway.PaymentMethod>
 
 |find |  |token |com.braintreegateway.PaymentMethod
@@ -415,6 +427,7 @@ URI Options for _paymentMethod_
 |Name |Type
 |token |String
 |request |com.braintreegateway.PaymentMethodRequest
+|deleteRequest |com.braintreegateway.PaymentMethodDeleteRequest
 |==================================================
 
 #### Endpoint prefix _paymentMethodNonce_
@@ -581,7 +594,7 @@ braintree://transaction/endpoint?[options]
 |releaseFromEscrow |  |id
 |com.braintreegateway.Result<com.braintreegateway.Transaction>
 
-|refund |  |id, amount
+|refund |  |id, amount, refundRequest
 |com.braintreegateway.Result<com.braintreegateway.Transaction>
 
 |sale |  |request
@@ -609,6 +622,7 @@ URI Options for _transaction_
 |id |String
 |request |com.braintreegateway.TransactionCloneRequest
 |cloneRequest |com.braintreegateway.TransactionCloneRequest
+|refundRequest |com.braintreegateway.TransactionRefundRequest
 |amount |BigDecimal
 |query |com.braintreegateway.TransactionSearchRequest
 |==========================================================

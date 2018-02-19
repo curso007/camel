@@ -355,7 +355,7 @@ public final class ProcessorDefinitionHelper {
             return !outputs.isEmpty();
         }
         for (ProcessorDefinition output : outputs) {
-            if (output instanceof TransactedDefinition || output instanceof PolicyDefinition) {
+            if (output.isWrappingEntireOutput()) {
                 // special for those as they wrap entire output, so we should just check its output
                 return hasOutputs(output.getOutputs(), excludeAbstract);
             }
@@ -464,7 +464,7 @@ public final class ProcessorDefinitionHelper {
             // lookup in registry first and use existing thread pool if exists
             ExecutorService answer = lookupExecutorServiceRef(routeContext, name, definition, definition.getExecutorServiceRef());
             if (answer == null) {
-                throw new IllegalArgumentException("ExecutorServiceRef " + definition.getExecutorServiceRef() + " not found in registry or as a thread pool profile.");
+                throw new IllegalArgumentException("ExecutorServiceRef " + definition.getExecutorServiceRef() + " not found in registry (as an ExecutorService instance) or as a thread pool profile.");
             }
             return answer;
         } else if (useDefault) {
@@ -546,7 +546,8 @@ public final class ProcessorDefinitionHelper {
         } else if (definition.getExecutorServiceRef() != null) {
             ScheduledExecutorService answer = lookupScheduledExecutorServiceRef(routeContext, name, definition, definition.getExecutorServiceRef());
             if (answer == null) {
-                throw new IllegalArgumentException("ExecutorServiceRef " + definition.getExecutorServiceRef() + " not found in registry or as a thread pool profile.");
+                throw new IllegalArgumentException("ExecutorServiceRef " + definition.getExecutorServiceRef() 
+                        + " not found in registry (as an ScheduledExecutorService instance) or as a thread pool profile.");
             }
             return answer;
         } else if (useDefault) {
@@ -695,7 +696,7 @@ public final class ProcessorDefinitionHelper {
                 if (Constants.PLACEHOLDER_QNAME.equals(key.getNamespaceURI())) {
                     String local = key.getLocalPart();
                     Object value = other.getOtherAttributes().get(key);
-                    if (value != null && value instanceof String) {
+                    if (value instanceof String) {
                         // enforce a properties component to be created if none existed
                         CamelContextHelper.lookupPropertiesComponent(camelContext, true);
 

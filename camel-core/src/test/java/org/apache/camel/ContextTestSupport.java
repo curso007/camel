@@ -111,7 +111,7 @@ public abstract class ContextTestSupport extends TestSupport {
         if (isUseRouteBuilder()) {
             RouteBuilder[] builders = createRouteBuilders();
             for (RouteBuilder builder : builders) {
-                log.debug("Using created route builder: " + builder);
+                log.debug("Using created route builder: {}", builder);
                 context.addRoutes(builder);
             }
             startCamelContext();
@@ -123,7 +123,7 @@ public abstract class ContextTestSupport extends TestSupport {
 
     @Override
     protected void tearDown() throws Exception {
-        log.debug("tearDown test: " + getName());
+        log.debug("tearDown test: {}", getName());
         if (consumer != null) {
             consumer.stop();
         }
@@ -151,6 +151,14 @@ public abstract class ContextTestSupport extends TestSupport {
      */
     @Deprecated
     protected boolean isLazyLoadingTypeConverter() {
+        return false;
+    }
+
+    /**
+     * Whether to load additional type converters by scanning the classpath.
+     * This should only be enabled for tests that uses custom type converters.
+     */
+    protected boolean isLoadTypeConverters() {
         return false;
     }
 
@@ -183,6 +191,7 @@ public abstract class ContextTestSupport extends TestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext context = new DefaultCamelContext(createRegistry());
         context.setLazyLoadTypeConverters(isLazyLoadingTypeConverter());
+        context.setLoadTypeConverters(isLoadTypeConverters());
         return context;
     }
 

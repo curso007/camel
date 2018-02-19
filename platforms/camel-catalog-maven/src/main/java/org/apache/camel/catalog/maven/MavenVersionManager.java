@@ -16,6 +16,7 @@
  */
 package org.apache.camel.catalog.maven;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -26,8 +27,8 @@ import java.util.Map;
 import groovy.grape.Grape;
 import groovy.lang.GroovyClassLoader;
 import org.apache.camel.catalog.VersionManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
+import org.apache.ivy.util.url.URLHandlerRegistry;
 
 /**
  * A {@link VersionManager} that can load the resources using Maven to download needed artifacts from
@@ -35,14 +36,14 @@ import org.slf4j.LoggerFactory;
  * <p/>
  * This implementation uses Groovy Grape to download the Maven JARs.
  */
-public class MavenVersionManager implements VersionManager {
-
-    private static final Logger LOG = LoggerFactory.getLogger(MavenVersionManager.class);
+public class MavenVersionManager implements VersionManager, Closeable {
 
     private final ClassLoader classLoader = new GroovyClassLoader();
+    private final TimeoutHttpClientHandler httpClient = new TimeoutHttpClientHandler();
     private String version;
     private String runtimeProviderVersion;
     private String cacheDirectory;
+    private boolean log;
 
     /**
      * Configures the directory for the download cache.
@@ -53,6 +54,23 @@ public class MavenVersionManager implements VersionManager {
      */
     public void setCacheDirectory(String directory) {
         this.cacheDirectory = directory;
+    }
+
+    /**
+     * Sets whether to log errors and warnings to System.out.
+     * By default nothing is logged.
+     */
+    public void setLog(boolean log) {
+        this.log = log;
+    }
+
+    /**
+     * Sets the timeout in millis (http.socket.timeout) when downloading via http/https protocols.
+     * <p/>
+     * The default value is 10000
+     */
+    public void setHttpClientTimeout(int timeout) {
+        httpClient.setTimeout(timeout);
     }
 
     /**
@@ -76,6 +94,8 @@ public class MavenVersionManager implements VersionManager {
     @Override
     public boolean loadVersion(String version) {
         try {
+            URLHandlerRegistry.setDefault(httpClient);
+
             if (cacheDirectory != null) {
                 System.setProperty("grape.root", cacheDirectory);
             }
@@ -93,7 +113,9 @@ public class MavenVersionManager implements VersionManager {
             this.version = version;
             return true;
         } catch (Exception e) {
-            LOG.warn("Cannot load version " + version + " due " + e.getMessage());
+            if (log) {
+                System.out.print("WARN: Cannot load version " + version + " due " + e.getMessage());
+            }
             return false;
         }
     }
@@ -106,6 +128,8 @@ public class MavenVersionManager implements VersionManager {
     @Override
     public boolean loadRuntimeProviderVersion(String groupId, String artifactId, String version) {
         try {
+            URLHandlerRegistry.setDefault(httpClient);
+
             Grape.setEnableAutoDownload(true);
 
             Map<String, Object> param = new HashMap<>();
@@ -119,7 +143,9 @@ public class MavenVersionManager implements VersionManager {
             this.runtimeProviderVersion = version;
             return true;
         } catch (Exception e) {
-            LOG.warn("Cannot load runtime provider version " + version + " due " + e.getMessage());
+            if (log) {
+                System.out.print("WARN: Cannot load runtime provider version " + version + " due " + e.getMessage());
+            }
             return false;
         }
     }
@@ -133,6 +159,9 @@ public class MavenVersionManager implements VersionManager {
         }
         if (is == null && version != null) {
             is = doGetResourceAsStream(name, version);
+        }
+        if (is == null) {
+            is = MavenVersionManager.class.getClassLoader().getResourceAsStream(name);
         }
 
         return is;
@@ -157,10 +186,18 @@ public class MavenVersionManager implements VersionManager {
                 return found.openStream();
             }
         } catch (IOException e) {
-            // ignore
-            LOG.warn("Cannot open resource " + name + " and version " + version + " due " + e.getMessage());
+            if (log) {
+                System.out.print("WARN: Cannot open resource " + name + " and version " + version + " due " + e.getMessage());
+            }
         }
 
         return null;
+    }
+
+    @Override
+    public void close() throws IOException {
+        // the http client uses this MultiThreadedHttpConnectionManager for handling http connections
+        // and we should ensure its shutdown to not leak connections/threads
+        MultiThreadedHttpConnectionManager.shutdownAll();
     }
 }

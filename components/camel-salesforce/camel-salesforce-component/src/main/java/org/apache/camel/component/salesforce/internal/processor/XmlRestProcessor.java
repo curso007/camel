@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.util.Map;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
@@ -33,6 +34,7 @@ import com.thoughtworks.xstream.io.xml.CompactWriter;
 import com.thoughtworks.xstream.io.xml.XppDriver;
 import com.thoughtworks.xstream.mapper.CachingMapper;
 import com.thoughtworks.xstream.mapper.CannotResolveClassException;
+
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -221,12 +223,13 @@ public class XmlRestProcessor extends AbstractRestProcessor {
 
     @Override
     protected void processResponse(final Exchange exchange, final InputStream responseEntity,
-        final SalesforceException exception, final AsyncCallback callback) {
+        final Map<String, String> headers, final SalesforceException exception, final AsyncCallback callback) {
         final XStream localXStream = xStream.get();
         try {
             final Message out = exchange.getOut();
             final Message in = exchange.getIn();
             out.copyFromWithNewBody(in, null);
+            out.getHeaders().putAll(headers);
 
             if (exception != null) {
                 if (shouldReport(exception)) {
@@ -236,7 +239,7 @@ public class XmlRestProcessor extends AbstractRestProcessor {
                 // do we need to un-marshal a response
                 final Class<?> responseClass = exchange.getProperty(RESPONSE_CLASS, Class.class);
                 Object response;
-                if (responseClass != null) {
+                if (!rawPayload && responseClass != null) {
                     // its ok to call this multiple times, as xstream ignores duplicate calls
                     localXStream.processAnnotations(responseClass);
                     final String responseAlias = exchange.getProperty(RESPONSE_ALIAS, String.class);

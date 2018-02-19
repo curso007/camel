@@ -53,8 +53,6 @@ public class BoxFoldersManagerIntegrationTest extends AbstractBoxTestSupport {
     private static final String CAMEL_TEST_ROOT_FOLDER_ID = "0";
     private static final String CAMEL_TEST_DESTINATION_FOLDER_ID = "0";
 
-    private BoxFolder testFolder;
-
     @Test
     public void testCreateFolder() throws Exception {
 
@@ -66,6 +64,25 @@ public class BoxFoldersManagerIntegrationTest extends AbstractBoxTestSupport {
         headers.put("CamelBox.parentFolderId", "0");
         // parameter type is String
         headers.put("CamelBox.folderName", CAMEL_TEST_FOLDER);
+
+        testFolder = requestBodyAndHeaders("direct://CREATEFOLDER", null, headers);
+
+        assertNotNull("createFolder result", testFolder);
+        assertEquals("createFolder folder name", CAMEL_TEST_FOLDER, testFolder.getInfo().getName());
+        LOG.debug("createFolder: " + testFolder);
+    }
+
+    @Test
+    public void testCreateFolderByPath() throws Exception {
+
+        // delete folder created in test setup.
+        deleteTestFolder();
+
+        final Map<String, Object> headers = new HashMap<String, Object>();
+        // parameter type is String
+        headers.put("CamelBox.parentFolderId", "0");
+        // parameter type is String[]
+        headers.put("CamelBox.path", new String[] {CAMEL_TEST_FOLDER});
 
         testFolder = requestBodyAndHeaders("direct://CREATEFOLDER", null, headers);
 
@@ -294,16 +311,6 @@ public class BoxFoldersManagerIntegrationTest extends AbstractBoxTestSupport {
     private void createTestFolder() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         testFolder = rootFolder.createFolder(CAMEL_TEST_FOLDER).getResource();
-    }
-
-    private void deleteTestFolder() {
-        if (testFolder != null) {
-            try {
-                testFolder.delete(true);
-            } catch (Throwable t) {
-            }
-            testFolder = null;
-        }
     }
 
     private int sizeOfIterable(Iterable<?> it) {

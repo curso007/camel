@@ -71,24 +71,36 @@ public class RabbitMQConsumer extends DefaultConsumer implements Suspendable {
      * @throws TimeoutException
      */
     protected synchronized Connection getConnection() throws IOException, TimeoutException {
-        if (this.conn != null && this.conn.isOpen()) {
+        if (this.conn == null) {
+            openConnection();
+            return this.conn;
+        } else if (this.conn.isOpen() || (!this.conn.isOpen() && isAutomaticRecoveryEnabled())) {
+            return this.conn;
+        } else {
+            log.debug("The existing connection is closed");
+            openConnection();
             return this.conn;
         }
-        log.debug("The existing connection is closed");
-        openConnection();
-        return this.conn;
     }
 
-
+    private boolean isAutomaticRecoveryEnabled() {
+        return this.endpoint.getAutomaticRecoveryEnabled() != null
+            && this.endpoint.getAutomaticRecoveryEnabled();
+    }
     /**
-     * Add a consumer thread for given channel
+     * Create the consumers but don't start yet
      */
-    private void startConsumers() throws IOException {
-
+    private void createConsumers() throws IOException {
         // Create consumers but don't start yet
         for (int i = 0; i < endpoint.getConcurrentConsumers(); i++) {
             createConsumer();
         }
+    }
+
+    /**
+     * Start the consumers (already created)
+     */
+    private void startConsumers() {
 
         // Try starting consumers (which will fail if RabbitMQ can't connect)
         try {
@@ -149,13 +161,15 @@ public class RabbitMQConsumer extends DefaultConsumer implements Suspendable {
 
     @Override
     protected void doResume() throws Exception {
-        reconnect();
+        createConsumers();
+        startConsumers();
     }
 
     @Override
     protected void doStart() throws Exception {
         executor = endpoint.createExecutor();
         log.debug("Using executor {}", executor);
+        createConsumers();
         startConsumers();
     }
 
@@ -206,9 +220,6 @@ public class RabbitMQConsumer extends DefaultConsumer implements Suspendable {
                     log.info("Connection failed, will retry in " + connectionRetryInterval + "ms", e);
                     Thread.sleep(connectionRetryInterval);
                 }
-            }
-            if (!connectionFailed) {
-                startConsumers();
             }
             stop();
             return null;

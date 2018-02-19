@@ -28,7 +28,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.spi.Metadata;
-import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.StringHelper;
 
 /**
  * To specify the rest operation response headers using Swagger.
@@ -62,9 +62,15 @@ public class RestOperationResponseHeaderDefinition {
     @Metadata(defaultValue = "string")
     private String dataType;
 
+    @XmlAttribute
+    private String dataFormat;
+
     @XmlElementWrapper(name = "allowableValues")
     @XmlElement(name = "value")
     private List<String> allowableValues;
+
+    @XmlAttribute
+    private String example;
 
     public RestOperationResponseHeaderDefinition(RestOperationResponseMsgDefinition response) {
         this();
@@ -135,12 +141,34 @@ public class RestOperationResponseHeaderDefinition {
         this.dataType = dataType;
     }
 
+    public String getDataFormat() {
+        return dataFormat;
+    }
+
+    /**
+     * Sets the Swagger Parameter data format.
+     */
+    public void setDataFormat(String dataFormat) {
+        this.dataFormat = dataFormat;
+    }
+
     public List<String> getAllowableValues() {
         if (allowableValues != null) {
             return allowableValues;
         }
 
         return new ArrayList<String>();
+    }
+
+    public String getExample() {
+        return example;
+    }
+
+    /**
+     * Sets the Swagger example
+     */
+    public void setExample(String example) {
+        this.example = example;
     }
 
     /**
@@ -193,6 +221,16 @@ public class RestOperationResponseHeaderDefinition {
     }
 
     /**
+     * The data format of the parameter such as <tt>binary</tt>, <tt>date</tt>, <tt>date-time</tt>, <tt>password</tt>.
+     * The format is usually derived from the dataType alone. However you can set this option for more fine grained control
+     * of the format in use.
+     */
+    public RestOperationResponseHeaderDefinition dataFormat(String type) {
+        setDataFormat(type);
+        return this;
+    }
+
+    /**
      * Allowed values of the header when its an enum type
      */
     public RestOperationResponseHeaderDefinition allowableValues(List<String> allowableValues) {
@@ -209,12 +247,20 @@ public class RestOperationResponseHeaderDefinition {
     }
 
     /**
+     * Sets an example of this header.
+     */
+    public RestOperationResponseHeaderDefinition example(String example) {
+        setExample(example);
+        return this;
+    }
+
+    /**
      * Ends the configuration of this header
      */
     public RestOperationResponseMsgDefinition endHeader() {
         // name and type is mandatory
-        ObjectHelper.notEmpty(name, "name");
-        ObjectHelper.notEmpty(dataType, "dataType");
+        StringHelper.notEmpty(name, "name");
+        StringHelper.notEmpty(dataType, "dataType");
         return response;
     }
 

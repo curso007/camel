@@ -230,7 +230,7 @@ public class RabbitMQMessageConverter {
                 // Use the existing message so we keep the headers
                 message = camelExchange.getIn();
             } else {
-                message = new DefaultMessage();
+                message = new DefaultMessage(camelExchange.getContext());
                 camelExchange.setIn(message);
             }
         }
@@ -247,6 +247,7 @@ public class RabbitMQMessageConverter {
             message.setHeader(RabbitMQConstants.ROUTING_KEY, envelope.getRoutingKey());
             message.setHeader(RabbitMQConstants.EXCHANGE_NAME, envelope.getExchange());
             message.setHeader(RabbitMQConstants.DELIVERY_TAG, envelope.getDeliveryTag());
+            message.setHeader(RabbitMQConstants.REDELIVERY_TAG, envelope.isRedeliver());
         }
     }
 

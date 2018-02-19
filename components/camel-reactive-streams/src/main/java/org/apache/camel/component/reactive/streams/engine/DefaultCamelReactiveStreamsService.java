@@ -16,10 +16,12 @@
  */
 package org.apache.camel.component.reactive.streams.engine;
 
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.CompositeType;
@@ -32,23 +34,23 @@ import javax.management.openmbean.TabularType;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExchangePattern;
 import org.apache.camel.api.management.ManagedOperation;
 import org.apache.camel.api.management.ManagedResource;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.component.reactive.streams.ReactiveStreamsComponent;
+import org.apache.camel.component.reactive.streams.ReactiveStreamsCamelSubscriber;
+import org.apache.camel.component.reactive.streams.ReactiveStreamsConstants;
 import org.apache.camel.component.reactive.streams.ReactiveStreamsConsumer;
+import org.apache.camel.component.reactive.streams.ReactiveStreamsHelper;
 import org.apache.camel.component.reactive.streams.ReactiveStreamsProducer;
 import org.apache.camel.component.reactive.streams.api.CamelReactiveStreamsService;
-import org.apache.camel.component.reactive.streams.api.DispatchCallback;
 import org.apache.camel.component.reactive.streams.util.ConvertingPublisher;
 import org.apache.camel.component.reactive.streams.util.ConvertingSubscriber;
 import org.apache.camel.component.reactive.streams.util.MonoPublisher;
 import org.apache.camel.component.reactive.streams.util.UnwrapStreamProcessor;
-import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.spi.Synchronization;
 import org.apache.camel.support.ServiceSupport;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.function.Suppliers;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -58,26 +60,46 @@ import org.reactivestreams.Subscriber;
 @ManagedResource(description = "Managed CamelReactiveStreamsService")
 public class DefaultCamelReactiveStreamsService extends ServiceSupport implements CamelReactiveStreamsService {
 
-    private CamelContext context;
+    private final CamelContext context;
+    private final ReactiveStreamsEngineConfiguration configuration;
+    private final Supplier<UnwrapStreamProcessor> unwrapStreamProcessorSupplier;
 
     private ExecutorService workerPool;
 
-    private final Map<String, CamelPublisher> publishers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CamelPublisher> publishers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ReactiveStreamsCamelSubscriber> subscribers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> publishedUriToStream = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> requestedUriToStream = new ConcurrentHashMap<>();
 
-    private final Map<String, CamelSubscriber> subscribers = new ConcurrentHashMap<>();
+    public DefaultCamelReactiveStreamsService(CamelContext context, ReactiveStreamsEngineConfiguration configuration) {
+        this.context = context;
+        this.configuration = configuration;
+        this.unwrapStreamProcessorSupplier = Suppliers.memorize(UnwrapStreamProcessor::new);
 
-    private final Map<String, String> publishedUriToStream = new ConcurrentHashMap<>();
-
-    private final Map<String, String> requestedUriToStream = new ConcurrentHashMap<>();
-
-    public DefaultCamelReactiveStreamsService() {
+        // must initialize the worker pool as early as possible
+        init();
     }
 
     @Override
+    public String getId() {
+        return ReactiveStreamsConstants.DEFAULT_SERVICE_NAME;
+    }
+
+    private void init() {
+        if (this.workerPool == null) {
+            this.workerPool = context.getExecutorServiceManager().newThreadPool(
+                this,
+                configuration.getThreadPoolName(),
+                configuration.getThreadPoolMinSize(),
+                configuration.getThreadPoolMaxSize()
+            );
+        }
+    }
+
+
+    @Override
     protected void doStart() throws Exception {
-        ReactiveStreamsComponent component = context.getComponent("reactive-streams", ReactiveStreamsComponent.class);
-        ReactiveStreamsEngineConfiguration config = component.getInternalEngineConfiguration();
-        this.workerPool = context.getExecutorServiceManager().newThreadPool(this, config.getThreadPoolName(), config.getThreadPoolMinSize(), config.getThreadPoolMaxSize());
+        // noop
     }
 
     @Override
@@ -90,7 +112,7 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
 
     @Override
     public Publisher<Exchange> fromStream(String name) {
-        return new UnwrappingPublisher<>(getPayloadPublisher(name));
+        return new UnwrappingPublisher(getPayloadPublisher(name));
     }
 
     @SuppressWarnings("unchecked")
@@ -103,9 +125,8 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
     }
 
     @Override
-    public CamelSubscriber streamSubscriber(String name) {
-        subscribers.computeIfAbsent(name, n -> new CamelSubscriber(name));
-        return subscribers.get(name);
+    public ReactiveStreamsCamelSubscriber streamSubscriber(String name) {
+        return subscribers.computeIfAbsent(name, n -> new ReactiveStreamsCamelSubscriber(name));
     }
 
     @SuppressWarnings("unchecked")
@@ -114,18 +135,17 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
             return (Subscriber<T>) streamSubscriber(name);
         }
 
-        return new ConvertingSubscriber<T>(streamSubscriber(name), getCamelContext());
+        return new ConvertingSubscriber<T>(streamSubscriber(name), context);
     }
 
     @Override
-    public void sendCamelExchange(String name, Exchange exchange, DispatchCallback<Exchange> callback) {
-        StreamPayload<Exchange> payload = new StreamPayload<>(exchange, callback);
-        getPayloadPublisher(name).publish(payload);
+    public void sendCamelExchange(String name, Exchange exchange) {
+        getPayloadPublisher(name).publish(exchange);
     }
 
     @Override
     public Publisher<Exchange> toStream(String name, Object data) {
-        Exchange exchange = convertToExchange(data);
+        Exchange exchange = ReactiveStreamsHelper.convertToExchange(context, data);
         return doRequest(name, exchange);
     }
 
@@ -188,7 +208,7 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
                     @Override
                     public void configure() throws Exception {
                         from(u)
-                                .to("reactive-streams:" + uuid);
+                            .to("reactive-streams:" + uuid);
                     }
                 }.addRoutesToCamelContext(context);
 
@@ -213,7 +233,7 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
                 @Override
                 public void configure() throws Exception {
                     from("reactive-streams:" + uuid)
-                            .to(uri);
+                        .to(uri);
                 }
             }.addRoutesToCamelContext(context);
 
@@ -237,7 +257,7 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
                     @Override
                     public void configure() throws Exception {
                         from("reactive-streams:" + uuid)
-                                .to(u);
+                            .to(u);
                     }
                 }.addRoutesToCamelContext(context);
 
@@ -256,7 +276,7 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
 
     @Override
     public <T> Publisher<T> to(String uri, Object data, Class<T> type) {
-        return new ConvertingPublisher<T>(to(uri, data), type);
+        return new ConvertingPublisher<>(to(uri, data), type);
     }
 
     @Override
@@ -271,12 +291,12 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
                 @Override
                 public void configure() throws Exception {
                     from(uri)
-                            .process(exchange -> {
-                                Exchange copy = exchange.copy();
-                                Object result = processor.apply(new MonoPublisher<>(copy));
-                                exchange.getIn().setBody(result);
-                            })
-                            .process(new UnwrapStreamProcessor());
+                        .process(exchange -> {
+                            Exchange copy = exchange.copy();
+                            Object result = processor.apply(new MonoPublisher<>(copy));
+                            exchange.getIn().setBody(result);
+                        })
+                        .process(unwrapStreamProcessorSupplier.get());
                 }
             }.addRoutesToCamelContext(context);
         } catch (Exception e) {
@@ -290,8 +310,8 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
     }
 
     @Override
-    public CamelSubscriber attachCamelConsumer(String name, ReactiveStreamsConsumer consumer) {
-        CamelSubscriber subscriber = streamSubscriber(name);
+    public ReactiveStreamsCamelSubscriber attachCamelConsumer(String name, ReactiveStreamsConsumer consumer) {
+        ReactiveStreamsCamelSubscriber subscriber = streamSubscriber(name);
         subscriber.attachConsumer(consumer);
         return subscriber;
     }
@@ -311,46 +331,21 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
         getPayloadPublisher(name).detachProducer();
     }
 
-    @Override
-    public void setCamelContext(CamelContext camelContext) {
-        this.context = camelContext;
-    }
-
-    @Override
-    public CamelContext getCamelContext() {
-        return this.context;
-    }
-
-    private Exchange convertToExchange(Object data) {
-        Exchange exchange;
-        if (data instanceof Exchange) {
-            exchange = (Exchange) data;
-        } else {
-            exchange = new DefaultExchange(context);
-            exchange.setPattern(ExchangePattern.InOut);
-            exchange.getIn().setBody(data);
-        }
-
-        return exchange;
-    }
-
     @ManagedOperation(description = "Information about Camel Reactive subscribers")
     public TabularData camelSubscribers() {
         try {
-            final TabularData answer = new TabularDataSupport(subscriptionsTabularType());
+            final TabularData answer = new TabularDataSupport(subscribersTabularType());
 
             subscribers.forEach((k, v) -> {
                 try {
                     String name = k;
                     long inflight = v.getInflightCount();
                     long requested = v.getRequested();
-                    long bufferSize = v.getBufferSize();
-                    String backpressure = v.getBackpressureStrategy() != null ? v.getBackpressureStrategy().name() : "";
 
-                    CompositeType ct = subscriptionsCompositeType();
+                    CompositeType ct = subscribersCompositeType();
                     CompositeData data = new CompositeDataSupport(ct,
-                        new String[] {"name", "inflight", "requested", "buffer size", "back pressure"},
-                        new Object[] {name, inflight, requested, bufferSize, backpressure});
+                        new String[] {"name", "inflight", "requested"},
+                        new Object[] {name, inflight, requested});
                     answer.put(data);
                 } catch (Exception e) {
                     throw ObjectHelper.wrapRuntimeCamelException(e);
@@ -371,14 +366,25 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
             publishers.forEach((k, v) -> {
                 try {
                     String name = k;
-                    int subscribers = v.getSubscriptionSize();
+                    List<CamelSubscription> subscriptions = v.getSubscriptions();
+                    int subscribers = subscriptions.size();
 
-                    // TODO: include more subscriber information, either as a nested table or flattern
+                    TabularData subscriptionData = new TabularDataSupport(subscriptionsTabularType());
+                    CompositeType subCt = subscriptionsCompositeType();
+                    for (CamelSubscription sub : subscriptions) {
+                        String id = sub.getId();
+                        long bufferSize = sub.getBufferSize();
+                        String backpressure = sub.getBackpressureStrategy() != null ? sub.getBackpressureStrategy().name() : "";
+                        CompositeData subData = new CompositeDataSupport(subCt, new String[]{"name", "buffer size", "back pressure"}, new Object[]{id, bufferSize, backpressure});
+
+                        subscriptionData.put(subData);
+                    }
+
 
                     CompositeType ct = publishersCompositeType();
                     CompositeData data = new CompositeDataSupport(ct,
-                        new String[] {"name", "subscribers"},
-                        new Object[] {name, subscribers});
+                        new String[] {"name", "subscribers", "subscriptions"},
+                        new Object[] {name, subscribers, subscriptionData});
                     answer.put(data);
                 } catch (Exception e) {
                     throw ObjectHelper.wrapRuntimeCamelException(e);
@@ -391,23 +397,35 @@ public class DefaultCamelReactiveStreamsService extends ServiceSupport implement
         }
     }
 
-    private static CompositeType subscriptionsCompositeType() throws OpenDataException {
-        return new CompositeType("subscriptions", "Subscriptions",
-            new String[] {"name", "inflight", "requested", "buffer size", "back pressure"},
-            new String[] {"Name", "Inflight", "Requested", "Buffer Size", "Back Pressure"},
-            new OpenType[] {SimpleType.STRING, SimpleType.LONG, SimpleType.LONG, SimpleType.LONG, SimpleType.STRING});
+    private static TabularType subscribersTabularType() throws OpenDataException {
+        CompositeType ct = subscribersCompositeType();
+        return new TabularType("subscribers", "Information about Camel Reactive subscribers", ct, new String[]{"name"});
     }
 
-    private static TabularType subscriptionsTabularType() throws OpenDataException {
-        CompositeType ct = subscriptionsCompositeType();
-        return new TabularType("subscriptions", "Information about Camel Reactive subscribers", ct, new String[]{"name"});
+    private static CompositeType subscribersCompositeType() throws OpenDataException {
+        return new CompositeType("subscriptions", "Subscriptions",
+                new String[] {"name", "inflight", "requested"},
+                new String[] {"Name", "Inflight", "Requested"},
+                new OpenType[] {SimpleType.STRING, SimpleType.LONG, SimpleType.LONG});
     }
 
     private static CompositeType publishersCompositeType() throws OpenDataException {
         return new CompositeType("publishers", "Publishers",
-            new String[] {"name", "subscribers"},
-            new String[] {"Name", "Subscribers"},
-            new OpenType[] {SimpleType.STRING, SimpleType.INTEGER});
+            new String[] {"name", "subscribers", "subscriptions"},
+            new String[] {"Name", "Subscribers", "Subscriptions"},
+            new OpenType[] {SimpleType.STRING, SimpleType.INTEGER, subscriptionsTabularType()});
+    }
+
+    private static TabularType subscriptionsTabularType() throws OpenDataException {
+        CompositeType ct = subscriptionsCompositeType();
+        return new TabularType("subscriptions", "Information about External Reactive subscribers", ct, new String[]{"name"});
+    }
+
+    private static CompositeType subscriptionsCompositeType() throws OpenDataException {
+        return new CompositeType("subscriptions", "Subscriptions",
+                new String[] {"name", "buffer size", "back pressure"},
+                new String[] {"Name", "Buffer Size", "Back Pressure"},
+                new OpenType[] {SimpleType.STRING, SimpleType.LONG, SimpleType.STRING});
     }
 
     private static TabularType publishersTabularType() throws OpenDataException {

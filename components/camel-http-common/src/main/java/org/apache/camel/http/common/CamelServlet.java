@@ -17,7 +17,9 @@
 package org.apache.camel.http.common;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -31,7 +33,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.RuntimeCamelException;
-import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +42,12 @@ import org.slf4j.LoggerFactory;
  */
 public class CamelServlet extends HttpServlet {
     public static final String ASYNC_PARAM = "async";
+
     private static final long serialVersionUID = -7061982839117697829L;
+    private static final List<String> METHODS = Arrays.asList("GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "OPTIONS", "CONNECT", "PATCH");
+
     protected final Logger log = LoggerFactory.getLogger(getClass());
-    
+
     /**
      *  We have to define this explicitly so the name can be set as we can not always be
      *  sure that it is already set via the init method
@@ -114,9 +118,18 @@ public class CamelServlet extends HttpServlet {
         // Is there a consumer registered for the request.
         HttpConsumer consumer = resolve(request);
         if (consumer == null) {
-            log.debug("No consumer to service request {}", request);
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
+            // okay we cannot process this requires so return either 404 or 405.
+            // to know if its 405 then we need to check if any other HTTP method would have a consumer for the "same" request
+            boolean hasAnyMethod = METHODS.stream().anyMatch(m -> getServletResolveConsumerStrategy().isHttpMethodAllowed(request, m, getConsumers()));
+            if (hasAnyMethod) {
+                log.debug("No consumer to service request {} as method {} is not allowed", request, request.getMethod());
+                response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+                return;
+            } else {
+                log.debug("No consumer to service request {} as resource is not found", request);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
         }       
         
         // are we suspended?
@@ -152,7 +165,7 @@ public class CamelServlet extends HttpServlet {
         }
         
         // create exchange and set data on it
-        Exchange exchange = new DefaultExchange(consumer.getEndpoint(), ExchangePattern.InOut);
+        Exchange exchange = consumer.getEndpoint().createExchange(ExchangePattern.InOut);
 
         if (consumer.getEndpoint().isBridgeEndpoint()) {
             exchange.setProperty(Exchange.SKIP_GZIP_ENCODING, Boolean.TRUE);
@@ -166,7 +179,7 @@ public class CamelServlet extends HttpServlet {
         // does some class resolution
         ClassLoader oldTccl = overrideTccl(exchange);
         HttpHelper.setCharsetFromContentType(request.getContentType(), exchange);
-        exchange.setIn(new HttpMessage(exchange, request, response));
+        exchange.setIn(new HttpMessage(exchange, consumer.getEndpoint(), request, response));
         // set context path as header
         String contextPath = consumer.getEndpoint().getPath();
         exchange.getIn().setHeader("CamelServletContextPath", contextPath);

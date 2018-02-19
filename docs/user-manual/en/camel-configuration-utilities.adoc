@@ -15,21 +15,21 @@ Supported Components
 The following Camel components directly support the use of this
 configuration utility:
 
-* link:http4.html[HTTP4]
-* link:jetty.html[Jetty]
-* link:ahc.html[AHC]
-* link:netty.html[Netty]
-* link:cometd.html[Cometd]
-* link:ftp2.html[FTP2]
-* link:irc.html[IRC]
-* link:mail.html[Mail]
+* <<http4-component,HTTP4>>
+* <<jetty-component,Jetty>>
+* <<ahc-component,AHC>>
+* <<netty-component,Netty>>
+* <<cometd-component,Cometd>>
+* FTP2
+* <<irc-component,IRC>>
+* <<mail-component,Mail>>
 * MINA 2
 
 The following Camel components indirectly support the use of this
 configuration utility:
 
-* link:cxf.html[CXF]
-* link:http.html[HTTP]
+* <<cxf-component,CXF>>
+* <<http-component,HTTP>>
 
 [[CamelConfigurationUtilities-Configuration]]
 Configuration
@@ -609,4 +609,39 @@ ID example is used to resolve the property placeholders.
     password="{{keyStoreParamerers.password}}"/>
 
 </beans>
+---------------------------------------------------------------------------------------------------------------
+
+[[CamelConfigurationUtilities-UsingSpringBoot.1]]
+Using Spring-Boot
+
+As of *2.19.0*, Camel provides a global SSL configuration that can be customized using the
+spring-boot _application.properties_ or _application.yml_ file.
+
+Components do not use the global SSL configuration by default, but this behavior can
+be changed using component-specific options. A flag named _useGlobalSslContextParameters_ is
+included in all components that support the global SSL configuration.
+
+The following example shows how to configure global SSL parameters (in _application.yml_) and enable their
+usage in the _camel-undertow_ component.
+
+[source,text]
+---------------------------------------------------------------------------------------------------------------
+camel:
+  # To enable global SSL in undertow
+  component:
+    undertow:
+      use-global-ssl-context-parameters: true
+  ssl:
+    config:
+      key-managers:
+        key-password: "changeit"
+        key-store:
+          resource: "/keystore.p12"
+          password: "changeit"
+          type: "PKCS12"
+      trust-managers:
+        key-store:
+          resource: "/cacerts"
+          password: "changeit"
+          type: "jks"
 ---------------------------------------------------------------------------------------------------------------

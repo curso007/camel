@@ -26,7 +26,6 @@ import java.util.Set;
 
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
-import org.apache.camel.spi.UriPath;
 import org.apache.chemistry.opencmis.client.api.CmisObject;
 import org.apache.chemistry.opencmis.client.api.Document;
 import org.apache.chemistry.opencmis.client.api.DocumentType;
@@ -182,8 +181,11 @@ public class CMISSessionFacade {
 
     public InputStream getContentStreamFor(QueryResult item) {
         Document document = getDocument(item);
-        if (document != null && document.getContentStream() != null) {
-            return document.getContentStream().getStream();
+        if (document != null) {
+            ContentStream contentStream = document.getContentStream();
+            if (contentStream != null) {
+                return contentStream.getStream();
+            }
         }
         return null;
     }

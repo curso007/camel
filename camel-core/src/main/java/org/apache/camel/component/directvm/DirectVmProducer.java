@@ -21,7 +21,6 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.impl.DefaultAsyncProducer;
 import org.apache.camel.spi.HeaderFilterStrategy;
-import org.apache.camel.util.ExchangeHelper;
 
 /**
  * The Direct-VM producer.
@@ -44,7 +43,7 @@ public class DirectVmProducer extends DefaultAsyncProducer {
             if (endpoint.isFailIfNoConsumers()) {
                 exchange.setException(new DirectVmConsumerNotAvailableException("No consumers available on endpoint: " + endpoint, exchange));
             } else {
-                log.debug("message ignored, no consumers available on endpoint: " + endpoint);
+                log.debug("message ignored, no consumers available on endpoint: {}", endpoint);
             }
             callback.done(true);
             return true;

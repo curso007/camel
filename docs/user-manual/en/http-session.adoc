@@ -23,7 +23,7 @@ Route/Context Scope
 +++++++++++++++++++
 
 It might be desirable to have a single session for a route or a 
-link:camelcontext.html[CamelContext]. This essentially means that all calls to
+CamelContext. This essentially means that all calls to
 a server issued from a route or CamelContext share a single HTTP session.
 
 [[HTTPSession-EndpointScope]]
@@ -31,7 +31,7 @@ Endpoint Scope
 ++++++++++++++
 
 It is also possible to have a session on an
-link:endpoint.html[Endpoint] entity. This would mean that all invocations of
+Endpoint entity. This would mean that all invocations of
 an HTTP call issued by a single Endpoint share a session, whereas different
 Endpoints never share sessions, even if the call is sent to the same server.
 
@@ -43,7 +43,7 @@ Exchange Scope
 ++++++++++++++
 
 The third option to define a session scope is on 
-link:exchange.html[Exchange] level. This is particularly useful for scenarios
+Exchange level. This is particularly useful for scenarios
 where the server session is really maintaining state.
 
 In this case the route could e.g. first do a login call, then some update calls 
@@ -116,6 +116,17 @@ not share a session.
   <bean id="instanceCookieHandler" class="org.apache.camel.http.common.cookie.InstanceCookieHandler"/>
   <bean id="exchangeCookieHandler" class="org.apache.camel.http.common.cookie.ExchangeCookieHandler"/>  
 -----------------------------------------------------------
+
+Both CookieHandler implementations support setting a CookiePolicy to control the policy for storing
+cookies. Default is CookiePolicy.ACCEPT_ORIGINAL_SERVER.
+
+Note: Some EIPs like multicast or splitter create multiple exchanges from a single one. If
+no `org.apache.camel.http.common.cookie.ExchangeCookieHandler` is used before this, each multicast
+or splitter branch will have its own cookie store. This will not be the case if the first invocation
+of one of the endpoints using the cookie handler is before the multicast, because in this case the
+cookie store will be attached to the original exchange, and the exchanges created by the multicast
+will copy the reference to this cookie store (so there is effectively a shared cookie store across branches.
+As a workaround, you can call a cookieHandler.getCookieStore() e.g. by setting this to some dummy header.
 
 [[HTTPSession-ComponentDevelopers]]
 Component Developers

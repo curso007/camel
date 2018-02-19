@@ -1,4 +1,5 @@
-## Random EIP
+[[random-eip]]
+== Random EIP
 
 
 // eip options: START

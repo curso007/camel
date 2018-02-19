@@ -34,6 +34,7 @@ import org.apache.camel.Route;
 import org.apache.camel.Service;
 import org.apache.camel.StaticService;
 import org.apache.camel.builder.ErrorHandlerBuilderRef;
+import org.apache.camel.cluster.CamelClusterService;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.spi.EventNotifier;
 import org.apache.camel.spi.InterceptStrategy;
@@ -52,6 +53,8 @@ public class DefaultManagementNamingStrategy implements ManagementNamingStrategy
     public static final String KEY_TYPE = "type";
     public static final String KEY_CONTEXT = "context";
     public static final String TYPE_CONTEXT = "context";
+    public static final String TYPE_ROUTE_CONTROLLER = "routecontrollers";
+    public static final String TYPE_HEALTH = "health";
     public static final String TYPE_ENDPOINT = "endpoints";
     public static final String TYPE_DATAFORMAT = "dataformats";
     public static final String TYPE_PROCESSOR = "processors";
@@ -64,6 +67,7 @@ public class DefaultManagementNamingStrategy implements ManagementNamingStrategy
     public static final String TYPE_ERRORHANDLER = "errorhandlers";
     public static final String TYPE_THREAD_POOL = "threadpools";
     public static final String TYPE_SERVICE = "services";
+    public static final String TYPE_HA = "clusterservices";
 
     protected String domainName;
     protected String hostName = "localhost";
@@ -110,6 +114,40 @@ public class DefaultManagementNamingStrategy implements ManagementNamingStrategy
         }
         String name = context.getName();
         return getObjectNameForCamelContext(managementName, name);
+    }
+
+    @Override
+    public ObjectName getObjectNameForCamelHealth(CamelContext context) throws MalformedObjectNameException {
+        // prefer to use the given management name if previously assigned
+        String managementName = context.getManagementName();
+        if (managementName == null) {
+            managementName = context.getManagementNameStrategy().getName();
+        }
+
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(domainName).append(":");
+        buffer.append(KEY_CONTEXT + "=").append(getContextId(managementName)).append(",");
+        buffer.append(KEY_TYPE + "=" + TYPE_HEALTH + ",");
+        buffer.append(KEY_NAME + "=").append(ObjectName.quote(context.getName()));
+
+        return createObjectName(buffer);
+    }
+
+    @Override
+    public ObjectName getObjectNameForRouteController(CamelContext context) throws MalformedObjectNameException {
+        // prefer to use the given management name if previously assigned
+        String managementName = context.getManagementName();
+        if (managementName == null) {
+            managementName = context.getManagementNameStrategy().getName();
+        }
+
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(domainName).append(":");
+        buffer.append(KEY_CONTEXT + "=").append(getContextId(managementName)).append(",");
+        buffer.append(KEY_TYPE + "=" + TYPE_ROUTE_CONTROLLER + ",");
+        buffer.append(KEY_NAME + "=").append(ObjectName.quote(context.getName()));
+
+        return createObjectName(buffer);
     }
 
     public ObjectName getObjectNameForEndpoint(Endpoint endpoint) throws MalformedObjectNameException {
@@ -278,6 +316,18 @@ public class DefaultManagementNamingStrategy implements ManagementNamingStrategy
         buffer.append(domainName).append(":");
         buffer.append(KEY_CONTEXT + "=").append(getContextId(context)).append(",");
         buffer.append(KEY_TYPE + "=" + TYPE_SERVICE + ",");
+        buffer.append(KEY_NAME + "=").append(service.getClass().getSimpleName());
+        if (!(service instanceof StaticService)) {
+            buffer.append("(").append(ObjectHelper.getIdentityHashCode(service)).append(")");
+        }
+        return createObjectName(buffer);
+    }
+
+    public ObjectName getObjectNameForClusterService(CamelContext context, CamelClusterService service) throws MalformedObjectNameException {
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(domainName).append(":");
+        buffer.append(KEY_CONTEXT + "=").append(getContextId(context)).append(",");
+        buffer.append(KEY_TYPE + "=" + TYPE_HA + ",");
         buffer.append(KEY_NAME + "=").append(service.getClass().getSimpleName());
         if (!(service instanceof StaticService)) {
             buffer.append("(").append(ObjectHelper.getIdentityHashCode(service)).append(")");

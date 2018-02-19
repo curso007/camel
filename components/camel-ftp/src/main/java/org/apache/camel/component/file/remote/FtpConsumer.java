@@ -17,21 +17,29 @@
 package org.apache.camel.component.file.remote;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
+import org.apache.camel.api.management.ManagedAttribute;
+import org.apache.camel.api.management.ManagedResource;
 import org.apache.camel.component.file.GenericFile;
 import org.apache.camel.component.file.GenericFileOperationFailedException;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.StopWatch;
+import org.apache.camel.util.TimeUtils;
 import org.apache.camel.util.URISupport;
+import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 
 /**
  * FTP consumer
  */
+@ManagedResource(description = "Managed FtpConsumer")
 public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
 
     protected String endpointPath;
@@ -41,6 +49,11 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
     public FtpConsumer(RemoteFileEndpoint<FTPFile> endpoint, Processor processor, RemoteFileOperations<FTPFile> fileOperations) {
         super(endpoint, processor, fileOperations);
         this.endpointPath = endpoint.getConfiguration().getDirectory();
+    }
+
+    @Override
+    protected FtpOperations getOperations() {
+        return (FtpOperations) super.getOperations();
     }
 
     @Override
@@ -143,6 +156,11 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
             // we found some files
             log.trace("Found {} in directory: {}", files.size(), dir);
         }
+        
+        
+        if (getEndpoint().isPreSort()) {
+            Collections.sort(files, (a, b) -> a.getName().compareTo(b.getName()));
+        }
 
         for (FTPFile file : files) {
 
@@ -204,7 +222,7 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
                     return true;
                 }
             }
-            if (cause != null && cause instanceof GenericFileOperationFailedException) {
+            if (cause instanceof GenericFileOperationFailedException) {
                 GenericFileOperationFailedException generic = ObjectHelper.getException(GenericFileOperationFailedException.class, cause);
                 //exchange is null and cause has the reason for failure to read directories
                 if (generic.getCode() == 550) {
@@ -235,7 +253,11 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
 
         // create a pseudo absolute name
         String dir = FileUtil.stripTrailingSeparator(absolutePath);
-        String absoluteFileName = FileUtil.stripLeadingSeparator(dir + "/" + file.getName());
+        String fileName = file.getName();
+        if (((FtpConfiguration)endpoint.getConfiguration()).isHandleDirectoryParserAbsoluteResult()) {
+            fileName = FtpUtils.extractDirNameFromAbsolutePath(file.getName());
+        }
+        String absoluteFileName =  FileUtil.stripLeadingSeparator(dir + "/" + fileName);
         // if absolute start with a leading separator otherwise let it be relative
         if (absolute) {
             absoluteFileName = "/" + absoluteFileName;
@@ -276,6 +298,48 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
     private boolean isUseList() {
         RemoteFileConfiguration config = (RemoteFileConfiguration) endpoint.getConfiguration();
         return config.isUseList();
+    }
+
+    @ManagedAttribute(description = "Summary of last FTP activity (download only)")
+    public String getLastFtpActivity() {
+        FTPClient client = getOperations().getFtpClient();
+        FtpClientActivityListener listener = (FtpClientActivityListener) client.getCopyStreamListener();
+        if (listener != null) {
+            String log = listener.getLastLogActivity();
+            if (log != null) {
+                long since = listener.getLastLogActivityTimestamp();
+                if (since > 0) {
+                    StopWatch watch = new StopWatch(new Date(since));
+                    long delta = watch.taken();
+                    String human = TimeUtils.printDuration(delta);
+                    return log + " " + human + " ago";
+                } else {
+                    return log;
+                }
+            }
+        }
+        return null;
+    }
+
+    @ManagedAttribute(description = "Summary of last FTP activity (all)")
+    public String getLastFtpActivityVerbose() {
+        FTPClient client = getOperations().getFtpClient();
+        FtpClientActivityListener listener = (FtpClientActivityListener) client.getCopyStreamListener();
+        if (listener != null) {
+            String log = listener.getLastVerboseLogActivity();
+            if (log != null) {
+                long since = listener.getLastVerboseLogActivityTimestamp();
+                if (since > 0) {
+                    StopWatch watch = new StopWatch(new Date(since));
+                    long delta = watch.taken();
+                    String human = TimeUtils.printDuration(delta);
+                    return log + " " + human + " ago";
+                } else {
+                    return log;
+                }
+            }
+        }
+        return null;
     }
 
     @Override

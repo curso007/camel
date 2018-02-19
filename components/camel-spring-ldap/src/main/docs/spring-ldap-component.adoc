@@ -1,4 +1,5 @@
-## Spring LDAP Component
+[[spring-ldap-component]]
+== Spring LDAP Component
 
 *Available as of Camel version 2.11*
 
@@ -42,27 +43,29 @@ The Spring LDAP component has no options.
 // endpoint options: START
 The Spring LDAP endpoint is configured using URI syntax:
 
-    spring-ldap:templateName
+----
+spring-ldap:templateName
+----
 
 with the following path and query parameters:
 
-#### Path Parameters (1 parameters):
+==== Path Parameters (1 parameters):
 
 [width="100%",cols="2,5,^1,2",options="header"]
-|=======================================================================
+|===
 | Name | Description | Default | Type
-| **templateName** | *Required* Name of the Spring LDAP Template bean |  | String
-|=======================================================================
+| *templateName* | *Required* Name of the Spring LDAP Template bean |  | String
+|===
 
-#### Query Parameters (3 parameters):
+==== Query Parameters (3 parameters):
 
 [width="100%",cols="2,5,^1,2",options="header"]
-|=======================================================================
+|===
 | Name | Description | Default | Type
-| **operation** (producer) | *Required* The LDAP operation to be performed. |  | LdapOperation
-| **scope** (producer) | The scope of the search operation. | subtree | String
-| **synchronous** (advanced) | Sets whether synchronous processing should be strictly used or Camel is allowed to use asynchronous processing (if supported). | false | boolean
-|=======================================================================
+| *operation* (producer) | *Required* The LDAP operation to be performed. |  | LdapOperation
+| *scope* (producer) | The scope of the search operation. | subtree | String
+| *synchronous* (advanced) | Sets whether synchronous processing should be strictly used, or Camel is allowed to use asynchronous processing (if supported). | false | boolean
+|===
 // endpoint options: END
 
 
@@ -71,7 +74,8 @@ with the following path and query parameters:
 The component supports producer endpoint only. An attempt to create a
 consumer endpoint will result in an `UnsupportedOperationException`. +
  The body of the message must be a map (an instance of `java.util.Map`).
-This map must contain at least an entry with the key *`dn`* (not needed for function_driven operation) that
+Unless a base DN is specified by in the configuration of your ContextSource,
+this map must contain at least an entry with the key *`dn`* (not needed for function_driven operation) that
 specifies the root node for the LDAP operation to be performed. Other
 entries of the map are operation-specific (see below).
 

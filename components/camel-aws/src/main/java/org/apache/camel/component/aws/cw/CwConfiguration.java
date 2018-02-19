@@ -20,6 +20,7 @@ import java.util.Date;
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 
+import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
@@ -32,11 +33,9 @@ public class CwConfiguration implements Cloneable {
     private String namespace;
     @UriParam
     private AmazonCloudWatch amazonCwClient;
-    @UriParam
-    private String amazonCwEndpoint;
-    @UriParam
+    @UriParam(label = "security", secret = true)
     private String accessKey;
-    @UriParam
+    @UriParam(label = "security", secret = true)
     private String secretKey;
     @UriParam
     private String name;
@@ -50,17 +49,8 @@ public class CwConfiguration implements Cloneable {
     private String proxyHost;
     @UriParam
     private Integer proxyPort;
-
-    /**
-     * The region with which the AWS-CW client wants to work with.
-     */
-    public void setAmazonCwEndpoint(String amazonCwEndpoint) {
-        this.amazonCwEndpoint = amazonCwEndpoint;
-    }
-
-    public String getAmazonCwEndpoint() {
-        return amazonCwEndpoint;
-    }
+    @UriParam
+    private String region;
 
     public String getAccessKey() {
         return accessKey;
@@ -152,7 +142,7 @@ public class CwConfiguration implements Cloneable {
     
     
     /**
-     * To define a proxy host when instantiating the SQS client
+     * To define a proxy host when instantiating the CW client
      */
     public String getProxyHost() {
         return proxyHost;
@@ -163,7 +153,7 @@ public class CwConfiguration implements Cloneable {
     }
 
     /**
-     * To define a proxy port when instantiating the SQS client
+     * To define a proxy port when instantiating the CW client
      */
     public Integer getProxyPort() {
         return proxyPort;
@@ -173,17 +163,26 @@ public class CwConfiguration implements Cloneable {
         this.proxyPort = proxyPort;
     }
 
-    @Override
-    public String toString() {
-        return "CwConfiguration[name=" + name
-                + ", amazonCwClient=" + amazonCwClient
-                + ", accessKey=" + accessKey
-                + ", secretKey=xxxxxxxxxxxxxxx"
-                + ", value=" + value
-                + ", unit=" + unit
-                + ", proxyHost=" + proxyHost
-                + ", proxyPort=" + proxyPort
-                + "]";
+    /**
+     * The region in which CW client needs to work
+     */
+    public String getRegion() {
+        return region;
     }
 
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
+    // *************************************************
+    //
+    // *************************************************
+
+    public CwConfiguration copy() {
+        try {
+            return (CwConfiguration)super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeCamelException(e);
+        }
+    }
 }

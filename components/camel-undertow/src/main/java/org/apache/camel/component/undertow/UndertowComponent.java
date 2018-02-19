@@ -23,12 +23,20 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.net.ssl.SSLContext;
+
+import io.undertow.server.HttpHandler;
+
 import org.apache.camel.CamelContext;
+import org.apache.camel.ComponentVerifier;
 import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
-import org.apache.camel.impl.UriEndpointComponent;
+import org.apache.camel.SSLContextParametersAware;
+import org.apache.camel.VerifiableComponent;
+import org.apache.camel.component.extension.ComponentVerifierExtension;
+import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.RestApiConsumerFactory;
 import org.apache.camel.spi.RestConfiguration;
@@ -48,7 +56,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Represents the component that manages {@link UndertowEndpoint}.
  */
-public class UndertowComponent extends UriEndpointComponent implements RestConsumerFactory, RestApiConsumerFactory, RestProducerFactory {
+@Metadata(label = "verifiers", enums = "parameters,connectivity")
+public class UndertowComponent extends DefaultComponent implements RestConsumerFactory, RestApiConsumerFactory, RestProducerFactory, VerifiableComponent, SSLContextParametersAware {
     private static final Logger LOG = LoggerFactory.getLogger(UndertowEndpoint.class);
 
     private Map<UndertowHostKey, UndertowHost> undertowRegistry = new ConcurrentHashMap<UndertowHostKey, UndertowHost>();
@@ -57,25 +66,42 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
     private UndertowHttpBinding undertowHttpBinding;
     @Metadata(label = "security")
     private SSLContextParameters sslContextParameters;
+    @Metadata(label = "security", defaultValue = "false")
+    private boolean useGlobalSslContextParameters;
     @Metadata(label = "advanced")
     private UndertowHostOptions hostOptions;
 
     public UndertowComponent() {
-        super(UndertowEndpoint.class);
+        this(null);
+    }
+
+    public UndertowComponent(CamelContext context) {
+        super(context);
+
+        registerExtension(UndertowComponentVerifierExtension::new);
     }
 
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
+        // Sa ve a copy of the parameters.
+        Map<String, Object> healthCheckOptions = new HashMap<>(parameters);
+
         URI uriHttpUriAddress = new URI(UnsafeUriCharactersEncoder.encodeHttpURI(remaining));
         URI endpointUri = URISupport.createRemainingURI(uriHttpUriAddress, parameters);
 
         // any additional channel options
         Map<String, Object> options = IntrospectionSupport.extractProperties(parameters, "option.");
 
+        // determine sslContextParameters
+        SSLContextParameters sslParams = this.sslContextParameters;
+        if (sslParams == null) {
+            sslParams = retrieveGlobalSslContextParameters();
+        }
+
         // create the endpoint first
         UndertowEndpoint endpoint = createEndpointInstance(endpointUri, this);
         // set options from component
-        endpoint.setSslContextParameters(sslContextParameters);
+        endpoint.setSslContextParameters(sslParams);
         // Prefer endpoint configured over component configured
         if (undertowHttpBinding == null) {
             // fallback to component configured
@@ -183,9 +209,22 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
             }
         }
 
+        boolean explicitOptions = true;
+        // must use upper case for restrict
+        String restrict = verb.toUpperCase(Locale.US);
+        // allow OPTIONS in rest-dsl to allow clients to call the API and have responses with ALLOW headers
+        if (!restrict.contains("OPTIONS")) {
+            restrict += ",OPTIONS";
+            // this is not an explicit OPTIONS path in the rest-dsl
+            explicitOptions = false;
+        }
+
         boolean cors = config.isEnableCORS();
         if (cors) {
             // allow HTTP Options as we want to handle CORS in rest-dsl
+            map.put("optionsEnabled", "true");
+        } else if (explicitOptions) {
+            // the rest-dsl is using OPTIONS
             map.put("optionsEnabled", "true");
         }
 
@@ -195,14 +234,9 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
         if (api) {
             url = "undertow:%s://%s:%s/%s?matchOnUriPrefix=true&httpMethodRestrict=%s";
         } else {
-            url = "undertow:%s://%s:%s/%s?httpMethodRestrict=%s";
+            url = "undertow:%s://%s:%s/%s?matchOnUriPrefix=false&httpMethodRestrict=%s";
         }
 
-        // must use upper case for restrict
-        String restrict = verb.toUpperCase(Locale.US);
-        if (cors) {
-            restrict += ",OPTIONS";
-        }
         // get the endpoint
         url = String.format(url, scheme, host, port, path, restrict);
 
@@ -269,23 +303,20 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
         }
     }
 
-    public void registerConsumer(UndertowConsumer consumer) {
-        URI uri = consumer.getEndpoint().getHttpURI();
-        UndertowHostKey key = new UndertowHostKey(uri.getHost(), uri.getPort(), consumer.getEndpoint().getSslContext());
-        UndertowHost host = undertowRegistry.get(key);
-        if (host == null) {
-            host = createUndertowHost(key);
-            undertowRegistry.put(key, host);
-        }
+    public HttpHandler registerEndpoint(HttpHandlerRegistrationInfo registrationInfo, SSLContext sslContext, HttpHandler handler) {
+        final URI uri = registrationInfo.getUri();
+        final UndertowHostKey key = new UndertowHostKey(uri.getHost(), uri.getPort(), sslContext);
+        final UndertowHost host = undertowRegistry.computeIfAbsent(key, k -> createUndertowHost(k));
+
         host.validateEndpointURI(uri);
-        host.registerHandler(consumer.getHttpHandlerRegistrationInfo(), consumer.getHttpHandler());
+        return host.registerHandler(registrationInfo, handler);
     }
 
-    public void unregisterConsumer(UndertowConsumer consumer) {
-        URI uri = consumer.getEndpoint().getHttpURI();
-        UndertowHostKey key = new UndertowHostKey(uri.getHost(), uri.getPort(), consumer.getEndpoint().getSslContext());
-        UndertowHost host = undertowRegistry.get(key);
-        host.unregisterHandler(consumer.getHttpHandlerRegistrationInfo());
+    public void unregisterEndpoint(HttpHandlerRegistrationInfo registrationInfo, SSLContext sslContext) {
+        final URI uri = registrationInfo.getUri();
+        final UndertowHostKey key = new UndertowHostKey(uri.getHost(), uri.getPort(), sslContext);
+        final UndertowHost host = undertowRegistry.get(key);
+        host.unregisterHandler(registrationInfo);
     }
 
     protected UndertowHost createUndertowHost(UndertowHostKey key) {
@@ -314,6 +345,18 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
         this.sslContextParameters = sslContextParameters;
     }
 
+    @Override
+    public boolean isUseGlobalSslContextParameters() {
+        return this.useGlobalSslContextParameters;
+    }
+
+    /**
+     * Enable usage of global SSL context parameters.
+     */
+    @Override
+    public void setUseGlobalSslContextParameters(boolean useGlobalSslContextParameters) {
+        this.useGlobalSslContextParameters = useGlobalSslContextParameters;
+    }
 
     public UndertowHostOptions getHostOptions() {
         return hostOptions;
@@ -326,4 +369,8 @@ public class UndertowComponent extends UriEndpointComponent implements RestConsu
         this.hostOptions = hostOptions;
     }
 
+    @Override
+    public ComponentVerifier getVerifier() {
+        return (scope, parameters) -> getExtension(ComponentVerifierExtension.class).orElseThrow(UnsupportedOperationException::new).verify(scope, parameters);
+    }
 }
