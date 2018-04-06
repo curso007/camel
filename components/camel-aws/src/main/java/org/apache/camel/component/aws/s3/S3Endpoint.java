@@ -38,6 +38,7 @@ import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriPath;
 import org.apache.camel.support.SynchronizationAdapter;
 import org.apache.camel.util.IOHelper;
+import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,8 +141,10 @@ public class S3Endpoint extends ScheduledPollEndpoint {
 
     @Override
     public void doStop() throws Exception {
-        if (s3Client != null) {
-            s3Client.shutdown();
+        if (ObjectHelper.isEmpty(configuration.getAmazonS3Client())) {
+            if (s3Client != null) {
+                s3Client.shutdown();
+            }
         }
         super.doStop();
     }
@@ -180,6 +183,9 @@ public class S3Endpoint extends ScheduledPollEndpoint {
         message.setHeader(S3Constants.S3_HEADERS, objectMetadata.getRawMetadata());
         message.setHeader(S3Constants.SERVER_SIDE_ENCRYPTION, objectMetadata.getSSEAlgorithm());
         message.setHeader(S3Constants.USER_METADATA, objectMetadata.getUserMetadata());
+        message.setHeader(S3Constants.EXPIRATION_TIME, objectMetadata.getExpirationTime());
+        message.setHeader(S3Constants.REPLICATION_STATUS, objectMetadata.getReplicationStatus());
+        message.setHeader(S3Constants.STORAGE_CLASS, objectMetadata.getStorageClass());
 
         /**
          * If includeBody != true, it is safe to close the object here. If

@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -43,8 +42,8 @@ public class FileConsumer extends GenericFileConsumer<File> {
     private String endpointPath;
     private Set<String> extendedAttributes;
 
-    public FileConsumer(FileEndpoint endpoint, Processor processor, GenericFileOperations<File> operations) {
-        super(endpoint, processor, operations);
+    public FileConsumer(FileEndpoint endpoint, Processor processor, GenericFileOperations<File> operations, GenericFileProcessStrategy<File> processStrategy) {
+        super(endpoint, processor, operations, processStrategy);
         this.endpointPath = endpoint.getConfiguration().getDirectory();
 
         if (endpoint.getExtendedAttributes() != null) {

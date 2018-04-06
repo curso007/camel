@@ -8,7 +8,7 @@ EIP patterns allows for the
 integration system to be monitored and managed from within the
 framework.
 
-image:http://www.eaipatterns.com/img/ControlBus.gif[image]
+image:ControlBus.gif[image]
 
 Use a Control Bus to manage an enterprise integration system. The
 Control Bus uses the same messaging mechanism used by the application
@@ -78,6 +78,7 @@ with the following path and query parameters:
 
 ==== Path Parameters (2 parameters):
 
+
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
@@ -85,7 +86,9 @@ with the following path and query parameters:
 | *language* | Allows you to specify the name of a Language to use for evaluating the message body. If there is any result from the evaluation, then the result is put in the message body. |  | Language
 |===
 
+
 ==== Query Parameters (6 parameters):
+
 
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
@@ -103,7 +106,6 @@ with the following path and query parameters:
 You can append query options to the URI in the following format,
 `?option=value&option=value&...`
 
-=== Samples
 
 === Using route command
 

@@ -95,6 +95,7 @@ with the following path and query parameters:
 
 ==== Path Parameters (3 parameters):
 
+
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
@@ -103,7 +104,9 @@ with the following path and query parameters:
 | *port* | *Required* Port number |  | int
 |===
 
+
 ==== Query Parameters (27 parameters):
+
 
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
@@ -203,7 +206,7 @@ assertEquals("Bye World", response);
 
 ### Sample with Spring DSL
 
-Spring DSL can, of course, also be used for <<mina-component,MINA>>. In the
+Spring DSL can, of course, also be used for <<mina2-component,MINA>>. In the
 sample below we expose a TCP server on port 5555:
 
 [source,xml]
@@ -269,6 +272,4 @@ is, after `codec` and `logger`.
 * Component
 * Endpoint
 * Getting Started
-
-* <<mina-component,MINA>>
 * <<netty-component,Netty>>

@@ -175,8 +175,20 @@ public class MllpEndpoint extends DefaultEndpoint {
         return lastConnectionTerminatedTicks != null ? new Date(lastConnectionTerminatedTicks) : null;
     }
 
+    public boolean hasLastConnectionActivityTicks() {
+        return lastConnectionActivityTicks != null && lastConnectionActivityTicks > 0;
+    }
+
+    public Long getLastConnectionActivityTicks() {
+        return lastConnectionActivityTicks;
+    }
+
     public void updateLastConnectionActivityTicks() {
-        lastConnectionActivityTicks = System.currentTimeMillis();
+        updateLastConnectionActivityTicks(System.currentTimeMillis());
+    }
+
+    public void updateLastConnectionActivityTicks(long epochTicks) {
+        lastConnectionActivityTicks = epochTicks;
     }
 
     public void updateLastConnectionEstablishedTicks() {

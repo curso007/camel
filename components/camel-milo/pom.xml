@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>components</artifactId>
-    <version>2.21.0-SNAPSHOT</version>
+    <version>2.22.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-milo</artifactId>
@@ -100,39 +100,12 @@
           <childDelegation>false</childDelegation>
           <useFile>true</useFile>
           <forkCount>1</forkCount>
-          <reuseForks>true</reuseForks>
+          <!-- required due to issue eclipse/milo#23 -->
+          <reuseForks>false</reuseForks>
           <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
-          <includes>
-            <!-- Here we only run one test -->
-            <include>**/ConverterTest.java</include>
-          </includes>
         </configuration>
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <id>milo-test</id>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <childDelegation>false</childDelegation>
-              <useFile>true</useFile>
-              <forkCount>1</forkCount>
-              <!-- required due to issue eclipse/milo#23 -->
-              <reuseForks>false</reuseForks>
-              <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
-              <includes>
-                <include>**/*Test.java</include>
-              </includes>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 
 </project>

@@ -25,7 +25,7 @@ bundles, the camel routes will use +
  the same thread. That autorises to develop applications using
 Transactions - Tx.
 
-image:direct-vm.data/camel-direct-vm.png[image]
+image:camel-direct-vm.png[image]
 
 === URI format
 
@@ -70,13 +70,16 @@ with the following path and query parameters:
 
 ==== Path Parameters (1 parameters):
 
+
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
 | *name* | *Required* Name of direct-vm endpoint |  | String
 |===
 
+
 ==== Query Parameters (9 parameters):
+
 
 [width="100%",cols="2,5,^1,2",options="header"]
 |===

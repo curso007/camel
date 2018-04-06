@@ -2,7 +2,7 @@ Components
 ^^^^^^^^^^
 
 // components: START
-Number of Components: 291 in 199 JAR artifacts (19 deprecated)
+Number of Components: 292 in 199 JAR artifacts (20 deprecated)
 
 [width="100%",cols="4,1,5",options="header"]
 |===
@@ -426,7 +426,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `jetty:httpUri` | 1.2 | The jetty component provides HTTP-based endpoints for consuming and producing HTTP requests.
 
 | link:camel-websocket/src/main/docs/websocket-component.adoc[Jetty Websocket] (camel-websocket) +
-`websocket:host:port/resourceUri` | 2.10 | The websocket component provides websocket endpoints for communicating with clients using websocket.
+`websocket:host:port/resourceUri` | 2.10 | The websocket component provides websocket endpoints with Jetty for communicating with clients using websocket.
 
 | link:camel-jgroups/src/main/docs/jgroups-component.adoc[JGroups] (camel-jgroups) +
 `jgroups:clusterName` | 2.13 | The jgroups component provides exchange of messages between Camel and JGroups clusters.
@@ -435,7 +435,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `jing:resourceUri` | 1.1 | Validates the payload of a message using RelaxNG Syntax using Jing library.
 
 | link:camel-jira/src/main/docs/jira-component.adoc[JIRA] (camel-jira) +
-`jira:type` | 2.15 | The jira component interacts with the JIRA issue tracker.
+`jira:type` | 2.15 | *deprecated* The jira component interacts with the JIRA issue tracker.
 
 | link:camel-jms/src/main/docs/jms-component.adoc[JMS] (camel-jms) +
 `jms:destinationType:destinationName` | 1.0 | The jms component allows messages to be sent to (or consumed from) a JMS Queue or Topic.
@@ -513,7 +513,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `ldif:ldapConnectionName` | 2.20 | The ldif component allows you to do updates on an LDAP server from a LDIF body content.
 
 | link:camel-linkedin/camel-linkedin-component/src/main/docs/linkedin-component.adoc[Linkedin] (camel-linkedin) +
-`linkedin:apiName/methodName` | 2.14 | The linkedin component is uses for retrieving LinkedIn user profiles, connections, companies, groups, posts, etc.
+`linkedin:apiName/methodName` | 2.14 | The linkedin component is used for retrieving LinkedIn user profiles, connections, companies, groups, posts, etc.
 
 | link:../camel-core/src/main/docs/log-component.adoc[Log] (camel-core) +
 `log:loggerName` | 1.1 | The log component logs message exchanges to the underlying logging mechanism.
@@ -568,6 +568,9 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 
 | link:camel-mybatis/src/main/docs/mybatis-component.adoc[MyBatis] (camel-mybatis) +
 `mybatis:statement` | 2.7 | Performs a query, poll, insert, update or delete in a relational database using MyBatis.
+
+| link:camel-mybatis/src/main/docs/mybatis-bean-component.adoc[MyBatis Bean] (camel-mybatis) +
+`mybatis-bean:beanName:methodName` | 2.22 | Performs a query, insert, update or delete in a relational database using MyBatis.
 
 | link:camel-nagios/src/main/docs/nagios-component.adoc[Nagios] (camel-nagios) +
 `nagios:host:port` | 2.3 | To send passive checks to Nagios using JSendNSCA.
@@ -663,7 +666,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `quickfix:configurationName` | 2.1 | The quickfix component allows to send Financial Interchange (FIX) messages to the QuickFix engine.
 
 | link:camel-rabbitmq/src/main/docs/rabbitmq-component.adoc[RabbitMQ] (camel-rabbitmq) +
-`rabbitmq:hostname:portNumber/exchangeName` | 2.12 | The rabbitmq component allows you produce and consume messages from RabbitMQ instances.
+`rabbitmq:exchangeName` | 2.12 | The rabbitmq component allows you produce and consume messages from RabbitMQ instances.
 
 | link:camel-reactive-streams/src/main/docs/reactive-streams-component.adoc[Reactive Streams] (camel-reactive-streams) +
 `reactive-streams:stream` | 2.19 | Reactive Camel using reactive streams
@@ -828,7 +831,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `twitter-timeline:timelineType` | 2.10 | The Twitter Timeline component consumes twitter timeline or update the status of specific user.
 
 | link:camel-undertow/src/main/docs/undertow-component.adoc[Undertow] (camel-undertow) +
-`undertow:httpURI` | 2.16 | The undertow component provides HTTP-based endpoints for consuming and producing HTTP requests.
+`undertow:httpURI` | 2.16 | The undertow component provides HTTP and WebSocket based endpoints for consuming and producing HTTP/WebSocket requests.
 
 | link:../camel-core/src/main/docs/validator-component.adoc[Validator] (camel-core) +
 `validator:resourceUri` | 1.1 | Validates the payload of a message using XML Schema and JAXP Validation.
@@ -849,7 +852,7 @@ Number of Components: 291 in 199 JAR artifacts (19 deprecated)
 `wordpress:operation` | 2.21 | Integrates Camel with Wordpress.
 
 | link:camel-xchange/src/main/docs/xchange-component.adoc[XChange] (camel-xchange) +
-`xchange:name` | 2.21 | Camel XChange support
+`xchange:name` | 2.21 | The camel-xchange component provide access to many bitcoin and altcoin exchanges for trading and accessing market data.
 
 | link:camel-xmlrpc/src/main/docs/xmlrpc-component.adoc[XML RPC] (camel-xmlrpc) +
 `xmlrpc:address` | 2.11 | The xmlrpc component is used for sending messages to a XML RPC service.

@@ -19,6 +19,8 @@ package org.apache.camel.component.git.producer;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.component.git.GitConstants;
@@ -29,6 +31,8 @@ import org.apache.camel.util.ObjectHelper;
 import org.eclipse.jgit.api.CherryPickResult;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ListBranchCommand.ListMode;
+import org.eclipse.jgit.api.MergeCommand.FastForwardMode;
+import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.RemoteAddCommand;
 import org.eclipse.jgit.api.Status;
@@ -139,6 +143,10 @@ public class GitProducer extends DefaultProducer {
         case GitOperation.PULL_OPERATION:
             doPull(exchange, operation);
             break;
+            
+        case GitOperation.MERGE_OPERATION:
+            doMerge(exchange, operation);
+            break;
 
         case GitOperation.CREATE_TAG_OPERATION:
             doCreateTag(exchange, operation);
@@ -148,8 +156,20 @@ public class GitProducer extends DefaultProducer {
             doDeleteTag(exchange, operation);
             break;
 
-        case GitOperation.SHOW_BRANCHES:
+        case GitOperation.SHOW_BRANCHES_OPERATION:
             doShowBranches(exchange, operation);
+            break;
+            
+        case GitOperation.SHOW_TAGS_OPERATION:
+            doShowTags(exchange, operation);
+            break;
+           
+        case GitOperation.CLEAN_OPERATION:
+            doClean(exchange, operation);
+            break;
+            
+        case GitOperation.GC_OPERATION:
+            doGc(exchange, operation);
             break;
 
         case GitOperation.REMOTE_ADD_OPERATION:
@@ -408,6 +428,23 @@ public class GitProducer extends DefaultProducer {
         }
         updateExchange(exchange, result);
     }
+    
+    protected void doMerge(Exchange exchange, String operation) throws Exception {
+        MergeResult result = null;
+        ObjectId mergeBase;
+        try {
+            if (ObjectHelper.isEmpty(endpoint.getBranchName())) {
+                throw new IllegalArgumentException("Branch name must be specified to execute " + operation);
+            }
+            mergeBase = git.getRepository().resolve(endpoint.getBranchName());
+            git.checkout().setName("master").call();
+            result = git.merge().include(mergeBase).setFastForward(FastForwardMode.FF).setCommit(true).call();
+        } catch (Exception e) {
+            LOG.error("There was an error in Git " + operation + " operation");
+            throw e;
+        }
+        updateExchange(exchange, result);
+    }
 
     protected void doCreateTag(Exchange exchange, String operation) throws Exception {
         if (ObjectHelper.isEmpty(endpoint.getTagName())) {
@@ -443,6 +480,17 @@ public class GitProducer extends DefaultProducer {
         }
         updateExchange(exchange, result);
     }
+    
+    protected void doShowTags(Exchange exchange, String operation) throws Exception {
+        List<Ref> result = null;
+        try {
+            result = git.tagList().call();
+        } catch (Exception e) {
+            LOG.error("There was an error in Git " + operation + " operation");
+            throw e;
+        }
+        updateExchange(exchange, result);
+    }
 
     protected void doCherryPick(Exchange exchange, String operation) throws Exception {
         CherryPickResult result = null;
@@ -461,6 +509,31 @@ public class GitProducer extends DefaultProducer {
                 git.checkout().setCreateBranch(false).setName(endpoint.getBranchName()).call();
             }
             result = git.cherryPick().include(commit).call();
+        } catch (Exception e) {
+            LOG.error("There was an error in Git " + operation + " operation");
+            throw e;
+        }
+        updateExchange(exchange, result);
+    }
+    
+    protected void doClean(Exchange exchange, String operation) throws Exception {
+        Set<String> result = null;
+        try {
+            if (ObjectHelper.isNotEmpty(endpoint.getBranchName())) {
+                git.checkout().setCreateBranch(false).setName(endpoint.getBranchName()).call();
+            }
+            result = git.clean().setCleanDirectories(true).call();
+        } catch (Exception e) {
+            LOG.error("There was an error in Git " + operation + " operation");
+            throw e;
+        }
+        updateExchange(exchange, result);
+    }
+    
+    protected void doGc(Exchange exchange, String operation) throws Exception {
+        Properties result = null;
+        try {
+            result = git.gc().call();
         } catch (Exception e) {
             LOG.error("There was an error in Git " + operation + " operation");
             throw e;

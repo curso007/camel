@@ -28,6 +28,7 @@ import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedResource;
 import org.apache.camel.component.file.GenericFile;
 import org.apache.camel.component.file.GenericFileOperationFailedException;
+import org.apache.camel.component.file.GenericFileProcessStrategy;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StopWatch;
@@ -43,11 +44,11 @@ import org.apache.commons.net.ftp.FTPFile;
 public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
 
     protected String endpointPath;
-   
+
     private transient String ftpConsumerToString;
 
-    public FtpConsumer(RemoteFileEndpoint<FTPFile> endpoint, Processor processor, RemoteFileOperations<FTPFile> fileOperations) {
-        super(endpoint, processor, fileOperations);
+    public FtpConsumer(RemoteFileEndpoint<FTPFile> endpoint, Processor processor, RemoteFileOperations<FTPFile> fileOperations, GenericFileProcessStrategy processStrategy) {
+        super(endpoint, processor, fileOperations, processStrategy);
         this.endpointPath = endpoint.getConfiguration().getDirectory();
     }
 
@@ -71,7 +72,7 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
                 } catch (GenericFileOperationFailedException e) {
                     // log a WARN as we want to start the consumer.
                     log.warn("Error auto creating directory: " + endpoint.getConfiguration().getDirectory()
-                            + " due " + e.getMessage() + ". This exception is ignored.", e);
+                        + " due " + e.getMessage() + ". This exception is ignored.", e);
                 }
             }
         } finally {
@@ -119,32 +120,40 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
         dirName = FileUtil.stripTrailingSeparator(dirName);
 
         // compute dir depending on stepwise is enabled or not
-        String dir;
-        if (isStepwise()) {
-            dir = ObjectHelper.isNotEmpty(dirName) ? dirName : absolutePath;
-            operations.changeCurrentDirectory(dir);
-        } else {
-            dir = absolutePath;
-        }
-
-        log.trace("Polling directory: {}", dir);
+        String dir = null;
         List<FTPFile> files = null;
-        if (isUseList()) {
+        try {
             if (isStepwise()) {
-                files = operations.listFiles();
+                dir = ObjectHelper.isNotEmpty(dirName) ? dirName : absolutePath;
+                operations.changeCurrentDirectory(dir);
             } else {
-                files = operations.listFiles(dir);
+                dir = absolutePath;
             }
-        } else {
-            // we cannot use the LIST command(s) so we can only poll a named file
-            // so created a pseudo file with that name
-            FTPFile file = new FTPFile();
-            file.setType(FTPFile.FILE_TYPE);
-            fileExpressionResult = evaluateFileExpression();
-            if (fileExpressionResult != null) {
-                file.setName(fileExpressionResult);
-                files = new ArrayList<FTPFile>(1);
-                files.add(file);
+
+            log.trace("Polling directory: {}", dir);
+            if (isUseList()) {
+                if (isStepwise()) {
+                    files = operations.listFiles();
+                } else {
+                    files = operations.listFiles(dir);
+                }
+            } else {
+                // we cannot use the LIST command(s) so we can only poll a named file
+                // so created a pseudo file with that name
+                FTPFile file = new FTPFile();
+                file.setType(FTPFile.FILE_TYPE);
+                fileExpressionResult = evaluateFileExpression();
+                if (fileExpressionResult != null) {
+                    file.setName(fileExpressionResult);
+                    files = new ArrayList<FTPFile>(1);
+                    files.add(file);
+                }
+            }
+        } catch (GenericFileOperationFailedException e) {
+            if (ignoreCannotRetrieveFile(null, null, e)) {
+                log.debug("Cannot list files in directory {} due directory does not exists or file permission error.", dir);
+            } else {
+                throw e;
             }
         }
 
@@ -156,8 +165,7 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
             // we found some files
             log.trace("Found {} in directory: {}", files.size(), dir);
         }
-        
-        
+
         if (getEndpoint().isPreSort()) {
             Collections.sort(files, (a, b) -> a.getName().compareTo(b.getName()));
         }
@@ -254,10 +262,10 @@ public class FtpConsumer extends RemoteFileConsumer<FTPFile> {
         // create a pseudo absolute name
         String dir = FileUtil.stripTrailingSeparator(absolutePath);
         String fileName = file.getName();
-        if (((FtpConfiguration)endpoint.getConfiguration()).isHandleDirectoryParserAbsoluteResult()) {
+        if (((FtpConfiguration) endpoint.getConfiguration()).isHandleDirectoryParserAbsoluteResult()) {
             fileName = FtpUtils.extractDirNameFromAbsolutePath(file.getName());
         }
-        String absoluteFileName =  FileUtil.stripLeadingSeparator(dir + "/" + fileName);
+        String absoluteFileName = FileUtil.stripLeadingSeparator(dir + "/" + fileName);
         // if absolute start with a leading separator otherwise let it be relative
         if (absolute) {
             absoluteFileName = "/" + absoluteFileName;

@@ -18,15 +18,9 @@ package org.apache.camel.component.elasticsearch;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.apache.camel.component.elasticsearch.converter.ElasticsearchActionRequestConverter;
 import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.util.IOHelper;
 import org.apache.http.HttpHost;
@@ -36,7 +30,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -158,28 +151,25 @@ public class ElasticsearchProducer extends DefaultProducer {
         }
 
         if (operation == ElasticsearchOperation.Index) {
-            IndexRequest indexRequest = ElasticsearchActionRequestConverter.toIndexRequest(message.getBody(), exchange);
+            IndexRequest indexRequest = message.getBody(IndexRequest.class);
             message.setBody(restHighLevelClient.index(indexRequest).getId());
         } else if (operation == ElasticsearchOperation.Update) {
-            UpdateRequest updateRequest = ElasticsearchActionRequestConverter.toUpdateRequest(message.getBody(), exchange);
+            UpdateRequest updateRequest = message.getBody(UpdateRequest.class);
             message.setBody(restHighLevelClient.update(updateRequest).getId());
         } else if (operation == ElasticsearchOperation.GetById) {
-            GetRequest getRequest = ElasticsearchActionRequestConverter.toGetRequest(message.getBody(), exchange);
+            GetRequest getRequest = message.getBody(GetRequest.class);
             message.setBody(restHighLevelClient.get(getRequest));
         } else if (operation == ElasticsearchOperation.Bulk) {
             BulkRequest bulkRequest = message.getBody(BulkRequest.class);
             message.setBody(restHighLevelClient.bulk(bulkRequest).getItems());
         } else if (operation == ElasticsearchOperation.BulkIndex) {
-            BulkRequest bulkRequest = ElasticsearchActionRequestConverter.toBulkRequest(message.getBody(), exchange);
-            List<String> indexedIds = Arrays.stream(restHighLevelClient.bulk(bulkRequest).getItems())
-                .map(BulkItemResponse::getId)
-                .collect(Collectors.toList());
-            message.setBody(indexedIds);
+            BulkRequest bulkRequest = message.getBody(BulkRequest.class);
+            message.setBody(restHighLevelClient.bulk(bulkRequest).getItems());
         } else if (operation == ElasticsearchOperation.Delete) {
-            DeleteRequest deleteRequest = ElasticsearchActionRequestConverter.toDeleteRequest(message.getBody(), exchange);
+            DeleteRequest deleteRequest = message.getBody(DeleteRequest.class);
             message.setBody(restHighLevelClient.delete(deleteRequest).getResult());
         } else if (operation == ElasticsearchOperation.DeleteIndex) {
-            DeleteRequest deleteRequest = ElasticsearchActionRequestConverter.toDeleteRequest(message.getBody(), exchange);
+            DeleteRequest deleteRequest = message.getBody(DeleteRequest.class);
             message.setBody(client.performRequest("Delete", deleteRequest.index()).getStatusLine().getStatusCode());
         } else if (operation == ElasticsearchOperation.Exists) {
             // ExistsRequest API is deprecated, using SearchRequest instead with size=0 and terminate_after=1
@@ -200,10 +190,12 @@ public class ElasticsearchProducer extends DefaultProducer {
 
             }
         } else if (operation == ElasticsearchOperation.Search) {
-            SearchRequest searchRequest = ElasticsearchActionRequestConverter.toSearchRequest(message.getBody(), exchange);
+            SearchRequest searchRequest = message.getBody(SearchRequest.class);
             message.setBody(restHighLevelClient.search(searchRequest).getHits());
         } else if (operation == ElasticsearchOperation.Ping) {
             message.setBody(restHighLevelClient.ping());
+        } else if (operation == ElasticsearchOperation.Info) {
+            message.setBody(restHighLevelClient.info());
         } else {
             throw new IllegalArgumentException(ElasticsearchConstants.PARAM_OPERATION + " value '" + operation + "' is not supported");
         }

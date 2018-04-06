@@ -95,7 +95,7 @@ public class ShutdownDeferTest extends ContextTestSupport {
 
         @Override
         protected FileConsumer newFileConsumer(Processor processor, GenericFileOperations<File> operations) {
-            return new FileConsumer(this, processor, operations) {
+            return new FileConsumer(this, processor, operations, createGenericFileStrategy()) {
                 @Override
                 protected void doSuspend() throws Exception {
                     CONSUMER_SUSPENDED.set(true);

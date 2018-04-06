@@ -12,14 +12,18 @@ Prequisites
 
 *Required:*
 
-* Download and http://maven.apache.org/download.html[install Maven] +
- (Maven 3.1.1 or newer is required to build Camel 2.14 onwards) +
-(Maven 3.2.5 or newer is required to build Camel 2.18 onwards) +
-(Maven 3.3.3 or newer is required to build Camel 2.20 onwards)
-* Get the latest Source
-* Java 
-(1.7 or 1.8 to build Camel 2.14 onwards) 
-(1.8 to build Camel 2.18 onwards) 
+* Java
+** 1.7 or 1.8 to build Camel 2.14 onwards
+** 1.8 to build Camel 2.18 onwards
+
+* https://github.com/takari/maven-wrapper[Maven Wrapper] is used and bundled with Camel 2.21 onwards.
+
+* Otherwise, http://maven.apache.org/download.html[download and install Maven]
+** Maven 3.1.1 or newer is required to build Camel 2.14 onwards
+** Maven 3.2.5 or newer is required to build Camel 2.18 onwards
+** Maven 3.3.3 or newer is required to build Camel 2.20 onwards
+
+* Get the latest source from https://github.com/apache/camel/[Github]
 
 *Optional:*
 
@@ -37,30 +41,17 @@ Unix/Linux/Mac
 
 [source,text]
 ------------------------------------------------------------
-export MAVEN_OPTS="-Xms2048m -Xmx2048m -XX:MaxPermSize=512m"
+export MAVEN_OPTS="-Xms2048m -Xmx3584m"
 ------------------------------------------------------------
 
-For Camel 2.18:
-
-[source,text]
-------------------------------------------------------------
-export MAVEN_OPTS="-XX:+UseConcMarkSweepGC -Xms2048m -Xmx2048m"
-------------------------------------------------------------
 
 [[Building-Windows]]
 Windows
 
 [source,text]
 -------------------------------------------------------
-set MAVEN_OPTS=-Xms2048m -Xmx2048m -XX:MaxPermSize=512m
+set MAVEN_OPTS="-Xms2048m -Xmx3584m"
 -------------------------------------------------------
-
-For Camel 2.18:
-
-[source,text]
-------------------------------------------------------------
-set MAVEN_OPTS="-XX:+UseConcMarkSweepGC -Xms2048m -Xmx2048m"
-------------------------------------------------------------
 
 [[Building-Anormalbuild]]
 A normal build
@@ -72,8 +63,11 @@ mvn clean install
 -----------------
 
 [[Building-Anormalbuildwithoutrunningtests]]
-A normal build without running tests
+A quick build without running tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following skips building the manual, the distro and does not execute
+the unit tests.
 
 [source,text]
 -------------------------------
@@ -88,20 +82,6 @@ A normal build without running tests but checkstyle verification enabled
 -------------------------------------------
 mvn clean install -Pfastinstall,sourcecheck
 -------------------------------------------
-
-[[Building-DoingaQuickBuild]]
-Doing a Quick Build
-^^^^^^^^^^^^^^^^^^^
-
-*Available as of Camel 2.6*
-
-The following skips building the manual, the distro and does not execute
-the unit tests.
-
-[source,text]
--------------------------
-mvn install -Pfastinstall
--------------------------
 
 [[Building-UsinganIDE]]
 Using an IDE
@@ -131,7 +111,7 @@ m2e
 Starting with Camel 2.14.0, Camel can be imported into Eclipse using m2e
 Maven integration.
 
-Before you start: It is important to run Eclipse with at least 1.5 GB of
+Before you start: It is important to run Eclipse with at least 4 GB of
 heap memory, otherwise the import process will fail. To increase the
 heap size, edit the "eclipse.ini" file and set the -Xmx parameter as
 follows:
@@ -141,15 +121,18 @@ follows:
 [source,java]
 ---------
 [...]
--Xmx1536m
+-Xms4G
+-Xmx4G
 ---------
+
+TIP: For a better experience some users set 8 GB when all projects are loaded and opened.
 
 [[Building-CloningtheGitRepository]]
 Cloning the Git Repository 
 
 Either follow instructions about getting the latest
 source, or clone the Git repository with Eclipse by
-selecting "File -> Import -> Git / Projects from Git" and "Clone URI".
+selecting *File -> Import -> Git / Projects from Git* and *Clone URI*.
 Provide all repository details in the import wizard and clone the
 repository into a directory outside of the Eclipse workspace. Once
 cloning has completed, exit the import project wizard (i.e. simply
@@ -158,19 +141,21 @@ select cancel when asked to select "Wizard for project import").
 [[Building-ImportMavenProjects]]
 Import Maven Projects
 
-Import Camel projects as Maven projects using m2e by selecting "File ->
-Import -> Maven -> Existing Maven Projects". Point the wizard to the
+Import Camel projects as Maven projects using m2e by selecting *File ->
+Import -> Maven -> Existing Maven Projects*. Point the wizard to the
 root directory of the cloned repository. Eclipse will analyze all Camel
 projects and eventually present the following summary:
 
 image:building.data/camel-eclipse-m2e-import.png[image]
 
-Simply confirm the import of all projects by clicking "Finish". The
+Simply confirm the import of all projects by clicking *Finish*. The
 import process will create Eclipse projects and automatically set up
 build paths using dependency details provided by the pom.xml files. Once
 completed, all Camel projects will be available in your workspace:
 
 image:building.data/camel-eclipse-m2e-import-completed.png[image]
+
+NOTE: As you can see main project is combined with multiple sub projects/modules (e.g. components, archetypes, tooling etc.). Many sub projects/modules are again categorized or packaged with another layer of sub modules and so on. Developers can import project/module which is relevant to them and work on it instead importing entire project which will consume memory and eventually slow down Eclipse. This approach is not only easy to import and work in eclipse as well as easy to test. Lets say you do some code changes in the camel-ftp component, then you can run the checks from within this directory.
 
 [[Building-maven-eclipse-plugin]]
 maven-eclipse-plugin
@@ -194,8 +179,8 @@ The latter is recommended as it would completely setup the workspace for
 you as well as provide options to wire in other projects also found in
 your workspace.
 
-After running the above command, from within Eclipse, do "File -> Import
--> Existing Projects into Workspace", select the root camel checkout
+After running the above command, from within Eclipse, do *File -> Import
+-> Existing Projects into Workspace*, select the root camel checkout
 location and Eclipse should find all the projects.
 
 [[Building-AddingCamelEclipsetemplatestoyourworkspace]]
@@ -297,4 +282,3 @@ See Also
 * Running Unit Tests
 * Source
 * Examples
-

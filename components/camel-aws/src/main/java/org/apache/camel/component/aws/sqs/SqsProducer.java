@@ -118,14 +118,14 @@ public class SqsProducer extends DefaultProducer {
         return sqsProducerToString;
     }
 
-    private Map<String, MessageAttributeValue> translateAttributes(Map<String, Object> headers, Exchange exchange) {
+    Map<String, MessageAttributeValue> translateAttributes(Map<String, Object> headers, Exchange exchange) {
         Map<String, MessageAttributeValue> result = new HashMap<String, MessageAttributeValue>();
         HeaderFilterStrategy headerFilterStrategy = getEndpoint().getHeaderFilterStrategy();
         for (Entry<String, Object> entry : headers.entrySet()) {
             // only put the message header which is not filtered into the message attribute
             if (!headerFilterStrategy.applyFilterToCamelHeaders(entry.getKey(), entry.getValue(), exchange)) {
                 Object value = entry.getValue();
-                if (value instanceof String) {
+                if (value instanceof String && !((String)value).isEmpty()) {
                     MessageAttributeValue mav = new MessageAttributeValue();
                     mav.setDataType("String");
                     mav.withStringValue((String)value);
@@ -134,6 +134,11 @@ public class SqsProducer extends DefaultProducer {
                     MessageAttributeValue mav = new MessageAttributeValue();
                     mav.setDataType("Binary");
                     mav.withBinaryValue((ByteBuffer)value);
+                    result.put(entry.getKey(), mav);
+                } else if (value instanceof Number) {
+                    MessageAttributeValue mav = new MessageAttributeValue();
+                    mav.setDataType("Number");
+                    mav.withStringValue(((Number)value).toString());
                     result.put(entry.getKey(), mav);
                 } else {
                     // cannot translate the message header to message attribute value

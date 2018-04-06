@@ -22,16 +22,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.io.Writer;
 import java.util.Map;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
-import com.thoughtworks.xstream.core.TreeMarshallingStrategy;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import com.thoughtworks.xstream.io.naming.NoNameCoder;
-import com.thoughtworks.xstream.io.xml.CompactWriter;
-import com.thoughtworks.xstream.io.xml.XppDriver;
 import com.thoughtworks.xstream.mapper.CachingMapper;
 import com.thoughtworks.xstream.mapper.CannotResolveClassException;
 
@@ -49,8 +43,7 @@ import org.apache.camel.component.salesforce.api.dto.SObjectDescription;
 import org.apache.camel.component.salesforce.api.dto.SearchResults;
 import org.apache.camel.component.salesforce.api.dto.Versions;
 import org.apache.camel.component.salesforce.api.dto.approval.ApprovalResult;
-import org.apache.camel.component.salesforce.api.utils.DateTimeConverter;
-import org.apache.camel.component.salesforce.internal.client.XStreamUtils;
+import org.apache.camel.component.salesforce.api.utils.XStreamUtils;
 import org.eclipse.jetty.util.StringUtil;
 
 import static org.apache.camel.component.salesforce.SalesforceEndpointConfig.SOBJECT_NAME;
@@ -65,20 +58,7 @@ public class XmlRestProcessor extends AbstractRestProcessor {
         new ThreadLocal<XStream>() {
             @Override
             protected XStream initialValue() {
-                // use NoNameCoder to avoid escaping __ in custom field names
-                // and CompactWriter to avoid pretty printing
-                XStream result = new XStream(new XppDriver(new NoNameCoder()) {
-                    @Override
-                    public HierarchicalStreamWriter createWriter(Writer out) {
-                        return new CompactWriter(out, getNameCoder());
-                    }
-
-                });
-                result.ignoreUnknownElements();
-                XStreamUtils.addDefaultPermissions(result);
-                result.registerConverter(new DateTimeConverter());
-                result.setMarshallingStrategy(new TreeMarshallingStrategy());
-                return result;
+                return XStreamUtils.createXStream();
             }
         };
 
@@ -180,7 +160,7 @@ public class XmlRestProcessor extends AbstractRestProcessor {
                 AbstractDTOBase dto = in.getBody(AbstractDTOBase.class);
                 if (dto != null) {
                     // marshall the DTO
-                    request = getRequestStream(dto);
+                    request = getRequestStream(in, dto);
                 } else {
                     // if all else fails, get body as String
                     final String body = in.getBody(String.class);
@@ -204,7 +184,7 @@ public class XmlRestProcessor extends AbstractRestProcessor {
     }
 
     @Override
-    protected InputStream getRequestStream(final Object object) throws SalesforceException {
+    protected InputStream getRequestStream(final Message in, final Object object) throws SalesforceException {
         final XStream localXStream = xStream.get();
         // first process annotations on the class, for things like alias, etc.
         localXStream.processAnnotations(object.getClass());

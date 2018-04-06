@@ -45,11 +45,11 @@ public class ElasticsearchComponent extends DefaultComponent {
     @Metadata(label = "advanced", defaultValue = "" + ElasticsearchConstants.DEFAULT_CONNECTION_TIMEOUT)
     private int connectionTimeout = ElasticsearchConstants.DEFAULT_CONNECTION_TIMEOUT;
 
-    @Metadata(label = "advance")
+    @Metadata(label = "security")
     private String user;
-    @Metadata(secret = true)
+    @Metadata(label = "security", secret = true)
     private String password;
-    @Metadata(label = "advanced", defaultValue = "false")
+    @Metadata(label = "security", defaultValue = "false")
     private boolean enableSSL;
     @Metadata(label = "advanced", defaultValue = "false")
     private boolean enableSniffer;
@@ -59,11 +59,12 @@ public class ElasticsearchComponent extends DefaultComponent {
     private int sniffAfterFailureDelay = ElasticsearchConstants.DEFAULT_AFTER_FAILURE_DELAY;
 
     public ElasticsearchComponent() {
-        super();
+        this(null);
     }
 
     public ElasticsearchComponent(CamelContext context) {
         super(context);
+        registerExtension(new ElasticsearchRestComponentVerifierExtension());
     }
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {

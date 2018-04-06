@@ -59,13 +59,16 @@ with the following path and query parameters:
 
 ==== Path Parameters (1 parameters):
 
+
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
 | *containerOrBlobUri* | *Required* Container or Blob compact Uri |  | String
 |===
 
+
 ==== Query Parameters (19 parameters):
+
 
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
@@ -105,7 +108,7 @@ You have to provide the containerOrBlob name and the credentials if the private 
 [width="100%",cols="10%,10%,80%",options="header",]
 |=======================================================================
 |Header |Type |Description
-
+| | |
 |=======================================================================
 
 #### Message headers set by the Azure Storage Blob Service producer

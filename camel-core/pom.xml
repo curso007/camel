@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>camel-parent</artifactId>
-    <version>2.21.0-SNAPSHOT</version>
+    <version>2.22.0-SNAPSHOT</version>
     <relativePath>../parent</relativePath>
   </parent>
 
@@ -680,10 +680,10 @@
             <configuration>
               <!-- skip file stress tests as they are intended to run manually -->
               <excludes>
-              <exclude>org/apache/camel/component/file/stress/**.java</exclude>
-              <exclude>**/DistributedCompletionIntervalTest.java</exclude>
-              <exclude>**/DistributedConcurrentPerCorrelationKeyTest.java</exclude>
-              <exclude>${platform.skip.tests}</exclude>
+                <exclude>org/apache/camel/component/file/stress/**.java</exclude>
+                <exclude>**/DistributedCompletionIntervalTest.java</exclude>
+                <exclude>**/DistributedConcurrentPerCorrelationKeyTest.java</exclude>
+                <exclude>${platform.skip.tests}</exclude>
               </excludes>
               <forkedProcessTimeoutInSeconds>3000</forkedProcessTimeoutInSeconds>
               <!-- needed for testing the properties component -->

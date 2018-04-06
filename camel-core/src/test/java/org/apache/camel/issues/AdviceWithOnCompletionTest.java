@@ -28,6 +28,7 @@ public class AdviceWithOnCompletionTest extends ContextTestSupport {
     public void testAdviceOnCompletion() throws Exception {
         getMockEndpoint("mock:done").expectedMessageCount(1);
         getMockEndpoint("mock:advice").expectedMessageCount(1);
+        getMockEndpoint("mock:result").expectedMessageCount(1);
 
         context.getRouteDefinitions().get(0).adviceWith(context, new AdviceWithRouteBuilder() {
             @Override

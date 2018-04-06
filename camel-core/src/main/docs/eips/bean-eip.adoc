@@ -18,14 +18,13 @@ the link:registry.html[Registry]
 // eip options: START
 The Bean EIP supports 5 options which are listed below:
 
-
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
 | *ref* | Sets a reference to a bean to use |  | String
 | *method* | Sets the method name on the bean to use |  | String
 | *beanType* | Sets the Class of the bean |  | String
-| *cache* | Caches the bean lookup to avoid lookup up bean on every usage. | true | Boolean
+| *cache* | Caches the bean lookup, to avoid lookup up bean on every usage. | true | Boolean
 | *multiParameterArray* | *Deprecated* Whether the message body is an array type. | false | Boolean
 |===
 // eip options: END

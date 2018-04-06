@@ -59,13 +59,16 @@ with the following path and query parameters:
 
 ==== Path Parameters (1 parameters):
 
+
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
 | Name | Description | Default | Type
 | *containerAndQueueUri* | *Required* Container Queue compact Uri |  | String
 |===
 
+
 ==== Query Parameters (10 parameters):
+
 
 [width="100%",cols="2,5,^1,2",options="header"]
 |===
@@ -96,7 +99,7 @@ You have to provide the containerAndQueue URI  and the credentials.
 [width="100%",cols="10%,10%,80%",options="header",]
 |=======================================================================
 |Header |Type |Description
-
+| | |
 |=======================================================================
 
 #### Message headers set by the Azure Storage Queue Service producer
@@ -104,6 +107,7 @@ You have to provide the containerAndQueue URI  and the credentials.
 [width="100%",cols="10%,10%,80%",options="header",]
 |=======================================================================
 |Header |Type |Description
+| | |
 |=======================================================================
 
 #### Message headers set by the Azure Storage Queue Service producer consumer
@@ -111,6 +115,7 @@ You have to provide the containerAndQueue URI  and the credentials.
 [width="100%",cols="10%,10%,80%",options="header",]
 |=======================================================================
 |Header |Type |Description
+| | |
 |=======================================================================
 
 #### Azure Queue Client configuration
